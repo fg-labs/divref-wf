@@ -10,7 +10,13 @@ readme          = "README.md"
 authors         = [{ name="Fulcrum Genomics LLC", email="contact@fulcrumgenomics.com" }]
 requires-python = ">=3.12,<3.14"
 dependencies    = [
-    "defopt~=6.4"
+    "defopt~=6.4",
+    "duckdb>=1.0",
+    "hail>=0.2",
+    "pandas>=2.0",
+    "polars>=1.0",
+    "pydantic>=2.0",
+    "tqdm>=4.0",
 ]
 classifiers     = [
     "Development Status :: 3 - Alpha",
@@ -105,6 +111,10 @@ exclude                     = [
 
 [[tool.mypy.overrides]]
 module = "defopt"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["hail", "hail.*", "tqdm", "tqdm.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
