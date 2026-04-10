@@ -21,4 +21,4 @@
 !.pixi/config.toml
 
 # claude
-**/claude
+**/.claude
