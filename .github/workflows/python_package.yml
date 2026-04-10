@@ -26,5 +26,4 @@ jobs:
 
       - name: Test the library
         run: |
-          uv run --locked poe check-all
-
+          uv run --directory divref --locked poe check-all
