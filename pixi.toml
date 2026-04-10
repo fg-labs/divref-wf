@@ -1,0 +1,19 @@
+[workspace]
+authors = ["Fulcrum Genomics"]
+channels = ["conda-forge", "bioconda"]
+name = "fg-labs-divref-wf"
+platforms = ["osx-arm64", "osx-64", "linux-64"]
+version = "0.1.0"
+
+[feature.snakemake.dependencies]
+python = ">=3.12.8,<3.13"
+snakemake-minimal = ">=8.28.0,<9.0"
+
+[pypi-dependencies]
+divref = { path = "./divref", editable = true }
+
+[environments]
+default = { features = ["snakemake"] }
+
+[tasks]
+download = "snakemake -j1 -s workflows/download.smk"

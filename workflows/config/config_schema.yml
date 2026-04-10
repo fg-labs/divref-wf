@@ -1,0 +1,24 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+description: Config schema for divref-wf
+
+type: object
+
+properties:
+  experiment:
+    type: string
+    description: Name of the experiment.
+    example: "divref-wf"
+
+  samples:
+    type: array
+    description: List of samples.
+    example: ["sample1", "sample2"]
+
+  p_value_cutoff:
+    type: number
+    description: P-value cutoff for statistical significance.
+    default: 0.05
+
+required:
+  - experiment
+  - samples

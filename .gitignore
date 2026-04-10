@@ -1,0 +1,24 @@
+# General
+**/.DS_Store
+
+# R and Rmarkdown
+.Rhistory
+.RData
+.Rproj.user/
+.Renviron
+*_cache
+*_files
+
+# Snakemake files
+.snakemake/
+.snakemake_timestamp
+
+# Vim swap files
+[._]*.sw[a-p]
+
+# pixi environments
+.pixi/*
+!.pixi/config.toml
+
+# claude
+**/claude
