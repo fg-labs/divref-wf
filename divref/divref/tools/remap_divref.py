@@ -202,7 +202,9 @@ def _translate_coordinate_to_ref(
         Reference genome position (1-based locus coordinate).
     """
     first_variant_start = variant_intervals[0][0]
-    if coord < first_variant_start:
+    if (coord < first_variant_start and sign == -1) or (
+        coord - 1 < first_variant_start and sign == 1
+    ):
         return vs[0].position - (first_variant_start - coord)
 
     last_smaller_variant = 0
@@ -317,7 +319,7 @@ def remap_divref(
             padded_target: str = df_row["padded_target"]
             target: str = df_row["unpadded_target_sequence"]
 
-            padded_len_adj = len(padded_target) - len(target)
+            padded_len_adj = len(padded_target.replace("-", "")) - len(target)
             if strand == "+":
                 end += padded_len_adj
             else:
