@@ -7,6 +7,13 @@
 
 # Snakemake workflow implementation to create DivRef-style resource
 
+This workflow is inspired by the [DivRef](https://github.com/e9genomics/human-diversity-reference) repository which is used to generate a bundle of FASTA sequences and a corresponding DuckDB index of common human variation.
+
+The original implementation is via a set of standalone Python scripts and a Makefile.
+This implementation:
+1. Wraps the Python scripts in a toolkit with added typing, improved parameterization, and added unit testing.
+2. Adds a Snakemake workflow and associated configuration to drive the resource generation process.
+
 ## Set up Environment
 
 The environment for this analysis is managed using `pixi`.
