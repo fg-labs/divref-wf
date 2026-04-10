@@ -5,71 +5,77 @@
 To check and resolve linting issues in the codebase, run:
 
 ```console
-uv run ruff check --fix
+uv run --directory divref ruff check --fix
 ```
 
 To check and resolve formatting issues in the codebase, run:
 
 ```console
-uv run ruff format
+uv run --directory divref ruff format
 ```
 
 To check the unit tests in the codebase, run:
 
 ```console
-uv run pytest
+uv run --directory divref pytest
 ```
 
 To check the typing in the codebase, run:
 
 ```console
-uv run mypy
+uv run --directory divref mypy
 ```
 
 To generate a code coverage report after testing locally, run:
 
 ```console
-uv run coverage html
+uv run --directory divref coverage html
 ```
 
-To check the lock file is up to date:
+To check the `uv` lock file is up to date:
 
 ```console
-uv lock --check
+uv lock --directory divref --check
+```
+
+To check the `pixi` lock file is up to date:
+
+```console
+pixi run check-lock
 ```
 
 ## Shortcut Task Commands
 
-###### For Running Individual Checks
+###### For Running Individual Toolkit Checks
 
 ```console
-uv run poe check-format
-uv run poe check-lint
-uv run poe check-tests
-uv run poe check-typing
+uv run --directory divref poe check-format
+uv run --directory divref poe check-lint
+uv run --directory divref poe check-tests
+uv run --directory divref poe check-typing
 ```
 
-###### For Running All Checks
+###### For Running All Toolkit Checks
 
 ```console
-uv run poe check-all
+pixi run check-toolkit
 ```
 
 ###### For Running Individual Fixes
 
 ```console
-uv run poe fix-format
-uv run poe fix-lint
+uv run --directory divref poe fix-format
+uv run --directory divref poe fix-lint
 ```
 
 ###### For Running All Fixes
 
 ```console
-uv run poe fix-all
+uv run --directory divref poe fix-all
 ```
 
 ###### For Running All Fixes and Checks
 
 ```console
-uv run poe fix-and-check-all
+pixi run fix-and-check-all
 ```
