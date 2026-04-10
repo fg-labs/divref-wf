@@ -1661,7 +1661,7 @@ packages:
 - pypi: ./divref
   name: divref
   version: 0.1.0
-  sha256: 78f898ba19df770834363cd89b9cd805a1a3a9cc3086153f9e8515c9e6a13c37
+  sha256: 0f38e966179a65bbeb9bf8356d6c3f6cab4e64bddbc31ae5feb5eb88b4b80e2e
   requires_dist:
   - defopt~=6.4
   - duckdb>=1.0
