@@ -14,7 +14,8 @@ jobs:
       matrix:
         PYTHON_VERSION: ["3.12", "3.13"]
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - name: Checkout from GitHub
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Install uv
         uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57  # v8.0.0
@@ -26,5 +27,4 @@ jobs:
 
       - name: Test the library
         run: |
-          uv run --locked poe check-all
-
+          uv run --directory divref --locked poe check-all

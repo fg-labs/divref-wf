@@ -1,6 +1,8 @@
 from snakemake.utils import validate
 
+
 configfile: os.path.join(workflow.basedir, "config", "config.yml")
+
 
 validate(config, os.path.join(workflow.basedir, "config", "config_schema.yml"))
 

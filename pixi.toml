@@ -8,6 +8,7 @@ version = "0.1.0"
 [feature.snakemake.dependencies]
 python = ">=3.12.8,<3.13"
 snakemake-minimal = ">=8.28.0,<9.0"
+snakefmt = ">=1.0.0,<2"
 
 [pypi-dependencies]
 divref = { path = "./divref", editable = true }
@@ -16,4 +17,20 @@ divref = { path = "./divref", editable = true }
 default = { features = ["snakemake"] }
 
 [tasks]
+check-toolkit = "uv run --directory divref poe check-all"
+fix-and-check-toolkit = "uv run --directory divref poe fix-and-check-all"
+
+check-lock   = "pixi lock --check"
+
+check-all = [
+    { task = "check-toolkit" },
+    { task = "check-lock" },
+]
+
+fix-and-check-all = [
+    { task = "fix-and-check-toolkit" },
+    { task = "check-lock" },
+]
+
+lint = "snakefmt --line-length 100 workflows/*.smk"
 download = "snakemake -j1 -s workflows/download.smk"
