@@ -14,7 +14,7 @@ snakefmt = ">=1.0.0,<2"
 divref = { path = "./divref", editable = true }
 
 [feature.hail.dependencies]
-openjdk = ">=11"
+openjdk = ">=11,<17"
 
 [environments]
 default = { features = ["snakemake", "hail"] }
