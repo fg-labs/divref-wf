@@ -1,7 +1,9 @@
 """Tests for shared Hail utilities in haplotype.py."""
 
+from pathlib import Path
 from typing import Any
 
+import hail as hl
 import pytest
 
 from divref.haplotype import get_haplo_sequence
@@ -9,12 +11,58 @@ from divref.haplotype import split_haplotypes
 from divref.haplotype import to_hashable_items
 from divref.haplotype import variant_distance
 
-hl = pytest.importorskip("hail")
+# ---------------------------------------------------------------------------
+# Helper functions
+# ---------------------------------------------------------------------------
+
+
+def _make_variant(position: int, ref: str, alt: str) -> Any:
+    return hl.Struct(locus=hl.Struct(contig="chr1", position=position), alleles=[ref, alt])
+
+
+def _make_haplotype_table(variant_positions: list[tuple[int, str, str]]) -> Any:
+    variant_type = hl.tstruct(locus=hl.tstruct(position=hl.tint32), alleles=hl.tarray(hl.tstr))
+    row_type = hl.tstruct(
+        variants=hl.tarray(variant_type),
+        haplotype=hl.tarray(hl.tstr),
+        gnomad_freqs=hl.tarray(hl.tfloat64),
+    )
+    variants = [
+        {"locus": {"position": pos}, "alleles": [ref, alt]} for pos, ref, alt in variant_positions
+    ]
+    return hl.Table.parallelize(
+        [
+            {
+                "variants": variants,
+                "haplotype": [str(i) for i in range(len(variants))],
+                "gnomad_freqs": [0.1] * len(variants),
+            }
+        ],
+        schema=row_type,
+    )
 
 
 # ---------------------------------------------------------------------------
 # get_haplo_sequence
 # ---------------------------------------------------------------------------
+
+
+def test_get_haplo_sequence_single(
+    datadir: Path,
+    hail_reference_genome: Any,
+    hail_context: None,  # noqa: ARG001
+) -> None:
+    """get_haplo_sequence should return the correct haplotype sequence."""
+    test_fasta: Path = datadir / "test.fa"
+    test_fai: Path = datadir / "test.fa.fai"
+
+    hail_reference_genome.add_sequence(str(test_fasta), str(test_fai))
+
+    variant = _make_variant(position=100, ref="A", alt="C")
+    x = get_haplo_sequence(
+        context_size=2, variants=[variant], reference_genome=hail_reference_genome.name
+    )
+    print(hl.str(x))
 
 
 def test_get_haplo_sequence_empty_list_raises() -> None:
@@ -51,10 +99,6 @@ def test_to_hashable_items_sorted_by_key() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _make_variant(position: int, ref: str, alt: str) -> Any:
-    return hl.Struct(locus=hl.Struct(position=position), alleles=[ref, alt])
-
-
 def test_variant_distance_adjacent_snps(hail_context: None) -> None:  # noqa: ARG001
     # SNP at 100, next SNP at 101: distance = 101 - 100 - len("A") = 0
     assert (
@@ -79,28 +123,6 @@ def test_variant_distance_deletion_closes_gap(hail_context: None) -> None:  # no
 # ---------------------------------------------------------------------------
 # split_haplotypes
 # ---------------------------------------------------------------------------
-
-
-def _make_haplotype_table(variant_positions: list[tuple[int, str, str]]) -> Any:
-    variant_type = hl.tstruct(locus=hl.tstruct(position=hl.tint32), alleles=hl.tarray(hl.tstr))
-    row_type = hl.tstruct(
-        variants=hl.tarray(variant_type),
-        haplotype=hl.tarray(hl.tstr),
-        gnomad_freqs=hl.tarray(hl.tfloat64),
-    )
-    variants = [
-        {"locus": {"position": pos}, "alleles": [ref, alt]} for pos, ref, alt in variant_positions
-    ]
-    return hl.Table.parallelize(
-        [
-            {
-                "variants": variants,
-                "haplotype": [str(i) for i in range(len(variants))],
-                "gnomad_freqs": [0.1] * len(variants),
-            }
-        ],
-        schema=row_type,
-    )
 
 
 def test_split_haplotypes_no_split_needed(hail_context: None) -> None:  # noqa: ARG001
