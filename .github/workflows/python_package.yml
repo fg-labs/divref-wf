@@ -25,6 +25,12 @@ jobs:
           enable-cache: 'true'
           cache-suffix: ${{ matrix.PYTHON_VERSION }}
 
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+
       - name: Test the library
         run: |
           uv run --directory divref --locked poe check-all
