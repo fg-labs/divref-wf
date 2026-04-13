@@ -1,12 +1,86 @@
 # CLAUDE.md
 
-## Template Setup
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**On first interaction in a new project:** If this section is present, the project
-has not yet been initialized.
+## Project Overview
 
-Run `/init`, then replace this entire section with its output. Keep the rest of
-this CLAUDE.md intact below it.
+**divref-wf** creates a DivRef-style resource bundle (FASTA sequences and DuckDB index) for common human variation, based on the [DivRef project](https://github.com/e9genomics/human-diversity-reference). It wraps original Python scripts with improved typing, parameterization, and unit tests, and adds Snakemake workflow orchestration.
+
+## Environment & Commands
+
+This project uses **two package managers**:
+
+- **`uv`** — manages the `divref` Python package under `./divref/`
+- **`pixi`** — manages the full workspace (Python toolkit + Snakemake + Hail)
+
+### Python Toolkit (`./divref/`)
+
+```bash
+uv run --directory divref poe fix-and-check-all   # Fix then check everything (required before commit)
+uv run --directory divref poe check-all            # Check format, lint, tests, and types
+uv run --directory divref poe fix-all              # Auto-fix formatting and linting
+uv run --directory divref pytest                   # Run tests
+uv run --directory divref pytest tests/test_main.py::test_name  # Run a single test
+uv run --directory divref mypy divref/             # Type-check only
+```
+
+### Workspace (Pixi)
+
+```bash
+pixi run fix-and-check-all   # Fix and check toolkit + Snakemake linting
+pixi run lint --check        # Validate Snakemake files with snakefmt
+pixi run download            # Run the Snakemake download workflow
+```
+
+## Architecture
+
+### Repository Layout
+
+```
+divref/                    # Python package (uv-managed)
+  divref/
+    main.py                # CLI entry point; registers tools in _tools list
+    haplotype.py           # Shared Hail utilities (HailPath alias, haplotype helpers)
+    tools/                 # One module per CLI subcommand
+  tests/                   # pytest tests
+  pyproject.toml           # Package deps, ruff/mypy/pytest config
+workflows/                 # Snakemake workflows
+  download.smk             # Template download workflow
+  config/config.yml        # Workflow configuration
+pixi.toml                  # Workspace config (snakemake + hail environments)
+```
+
+### CLI Pattern
+
+Tools are plain functions registered in `main.py`; **defopt** auto-generates the CLI from their docstrings. To add a new tool:
+
+1. Create `divref/tools/<name>.py` with a keyword-only function and Google docstring
+2. Import and add it to `_tools` in `main.py`
+
+```bash
+divref <tool-name> --arg value   # Invokes the registered tool
+```
+
+### Tool Pipeline (execution order)
+
+The tools implement a data pipeline:
+1. `create_gnomad_sites_vcf` → gnomAD sites VCF
+2. `extract_gnomad_afs` → allele frequencies
+3. `compute_haplotypes` → groups variants into haplotype windows using Hail
+4. `compute_haplotype_statistics` → haplotype distributions
+5. `compute_variation_ratios` → variant pattern statistics
+6. `create_fasta_and_index` → outputs FASTA + DuckDB index (final deliverable)
+7. `remap_divref` → maps haplotype coordinates to reference genome
+
+### Key Shared Module: `haplotype.py`
+
+- `HailPath = str` — type alias for paths accepted by Hail (local, `gs://`, `hdfs://`)
+- `get_haplo_sequence(context_size, variants)` — builds haplotype sequence strings with flanking reference context
+- `split_haplotypes(ht, window_size)` — splits multi-variant haplotypes at gaps > `window_size` bases
+
+### Data Models (`remap_divref.py`)
+
+Pydantic `frozen=True` models: `Variant`, `ReferenceMapping`, `Haplotype` — used for type-safe coordinate remapping.
 
 ## Git Workflow
 
