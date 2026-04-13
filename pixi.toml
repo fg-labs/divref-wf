@@ -13,8 +13,11 @@ snakefmt = ">=1.0.0,<2"
 [pypi-dependencies]
 divref = { path = "./divref", editable = true }
 
+[feature.hail.dependencies]
+openjdk = ">=11"
+
 [environments]
-default = { features = ["snakemake"] }
+default = { features = ["snakemake", "hail"] }
 
 [tasks]
 check-toolkit = "uv run --directory divref poe check-all"
