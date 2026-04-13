@@ -55,8 +55,7 @@ def _create_reference_mock(reference_sequence: str) -> Any:
     return mock_get_sequence
 
 
-@pytest.mark.skip(reason="Requires a running Hail/Spark JVM context")
-def test_get_haplo_sequence_edge_cases() -> None:
+def test_get_haplo_sequence_edge_cases(hail_context: None) -> None:  # noqa: ARG001
     """Test get_haplo_sequence with SNPs, insertions, and deletions."""
     reference = "01234567891"
 
