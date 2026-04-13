@@ -1,19 +1,24 @@
 """Shared utilities for Hail-based DivRef pipeline tools."""
 
 from typing import Any
+from typing import Hashable
+from typing import TypeVar
 
 import hail as hl
 
 HailPath = str
 """Type alias for filesystem paths accepted by Hail: local, GCS (gs://), or HDFS (hdfs://)."""
 
+_V = TypeVar("_V", bound=Hashable)
+"""Type variable for hashable dictionary values used in to_hashable_items."""
 
-def to_hashable_items(d: dict[str, Any]) -> tuple[tuple[str, Any], ...]:
+
+def to_hashable_items(d: dict[str, _V]) -> tuple[tuple[str, _V], ...]:
     """
     Convert a dictionary to a sorted tuple of items for use as a hashable key.
 
     Args:
-        d: Dictionary to convert.
+        d: Dictionary with hashable values to convert.
 
     Returns:
         Sorted tuple of (key, value) pairs.
@@ -32,10 +37,18 @@ def get_haplo_sequence(context_size: int, variants: Any) -> Any:
     Args:
         context_size: Number of reference bases to include flanking each end.
         variants: Hail array expression of variant structs with locus and alleles fields.
+            Must contain at least one variant.
 
     Returns:
         Hail string expression representing the full haplotype sequence.
+
+    Raises:
+        ValueError: If variants is a Python sequence with no elements.
     """
+    if isinstance(variants, (list, tuple)) and len(variants) == 0:
+        raise ValueError(
+            "get_haplo_sequence requires at least one variant; received an empty sequence"
+        )
     sorted_variants = hl.sorted(variants, key=lambda x: x.locus.position)
     min_variant = sorted_variants[0]
     max_variant = sorted_variants[-1]
@@ -89,9 +102,9 @@ def variant_distance(v1: Any, v2: Any) -> Any:
 
 def split_haplotypes(ht: Any, window_size: int) -> Any:
     """
-    Split multi-variant haplotypes at gaps larger than window_size bases.
+    Split multi-variant haplotypes at gaps of at least `window_size` bases.
 
-    Haplotypes spanning variants further than window_size bases apart are broken
+    Haplotypes spanning variants further than or equal to `window_size` bases apart are broken
     into sub-haplotypes at those gaps. Sub-haplotypes with fewer than two variants
     are discarded.
 
