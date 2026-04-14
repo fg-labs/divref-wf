@@ -1,7 +1,6 @@
 """Tests for shared Hail utilities in haplotype.py."""
 
 from pathlib import Path
-from typing import Any
 
 import hail as hl
 import pytest
@@ -16,11 +15,11 @@ from divref.haplotype import variant_distance
 # ---------------------------------------------------------------------------
 
 
-def _make_variant(position: int, ref: str, alt: str) -> Any:
+def _make_variant(position: int, ref: str, alt: str) -> hl.Struct:
     return hl.Struct(locus=hl.Struct(contig="chr1", position=position), alleles=[ref, alt])
 
 
-def _make_haplotype_table(variant_positions: list[tuple[str, int, str, str]]) -> Any:
+def _make_haplotype_table(variant_positions: list[tuple[str, int, str, str]]) -> hl.Table:
     variant_type = hl.tstruct(
         locus=hl.tstruct(contig=hl.tstr, position=hl.tint32), alleles=hl.tarray(hl.tstr)
     )
@@ -52,7 +51,7 @@ def _make_haplotype_table(variant_positions: list[tuple[str, int, str, str]]) ->
 
 def test_get_haplo_sequence_single(
     datadir: Path,
-    hail_reference_genome: Any,
+    hail_reference_genome: hl.ReferenceGenome,
     hail_context: None,  # noqa: ARG001
 ) -> None:
     """get_haplo_sequence should return the correct haplotype sequence."""
@@ -61,11 +60,20 @@ def test_get_haplo_sequence_single(
 
     hail_reference_genome.add_sequence(str(test_fasta), str(test_fai))
 
-    variant = _make_variant(position=100, ref="A", alt="C")
+    variant: hl.Struct = _make_variant(position=100, ref="A", alt="C")
     haplo_seq = get_haplo_sequence(
         context_size=2, variants=[variant], reference_genome=hail_reference_genome.name
     )
     assert hl.eval(haplo_seq) == "CCCTC"
+
+
+def test_get_haplo_sequence_invalid_reference_genome_raises(
+    hail_context: None,  # noqa: ARG001
+) -> None:
+    """get_haplo_sequence should raise KeyError when given an unregistered reference genome."""
+    variant = _make_variant(position=100, ref="A", alt="C")
+    with pytest.raises(KeyError, match="nonexistent_genome"):
+        get_haplo_sequence(context_size=2, variants=[variant], reference_genome="nonexistent_genome")
 
 
 def test_get_haplo_sequence_empty_list_raises() -> None:

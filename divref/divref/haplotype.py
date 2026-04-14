@@ -101,7 +101,7 @@ def variant_distance(v1: Any, v2: Any) -> Any:
     return v2.locus.position - v1.locus.position - hl.len(v1.alleles[0])
 
 
-def split_haplotypes(ht: Any, window_size: int) -> Any:
+def split_haplotypes(ht: hl.Table, window_size: int) -> hl.Table:
     """
     Split multi-variant haplotypes at gaps of at least `window_size` bases.
 

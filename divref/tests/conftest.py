@@ -23,6 +23,7 @@ def hail_context() -> Generator[None, None, None]:
 
 @pytest.fixture
 def datadir() -> Path:
+    """Path to tests/data."""
     return Path(__file__).parent / "data"
 
 
