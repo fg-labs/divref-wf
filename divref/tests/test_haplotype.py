@@ -73,7 +73,9 @@ def test_get_haplo_sequence_invalid_reference_genome_raises(
     """get_haplo_sequence should raise KeyError when given an unregistered reference genome."""
     variant = _make_variant(position=100, ref="A", alt="C")
     with pytest.raises(KeyError, match="nonexistent_genome"):
-        get_haplo_sequence(context_size=2, variants=[variant], reference_genome="nonexistent_genome")
+        get_haplo_sequence(
+            context_size=2, variants=[variant], reference_genome="nonexistent_genome"
+        )
 
 
 def test_get_haplo_sequence_empty_list_raises() -> None:
