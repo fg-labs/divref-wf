@@ -26,7 +26,7 @@ def to_hashable_items(d: dict[str, _V]) -> tuple[tuple[str, _V], ...]:
     return tuple(sorted(d.items()))
 
 
-def get_haplo_sequence(context_size: int, variants: Any) -> Any:
+def get_haplo_sequence(context_size: int, variants: Any, reference_genome: str = "GRCh38") -> Any:
     """
     Construct a haplotype sequence string with flanking genomic context.
 
@@ -38,6 +38,7 @@ def get_haplo_sequence(context_size: int, variants: Any) -> Any:
         context_size: Number of reference bases to include flanking each end.
         variants: Hail array expression of variant structs with locus and alleles fields.
             Must contain at least one variant.
+        reference_genome: Name of the reference genome. Defaults to "GRCh38".
 
     Returns:
         Hail string expression representing the full haplotype sequence.
@@ -60,7 +61,7 @@ def get_haplo_sequence(context_size: int, variants: Any) -> Any:
         min_pos,
         before=context_size,
         after=(max_pos - min_pos + max_variant_size + context_size - 1),
-        reference_genome="GRCh38",
+        reference_genome=reference_genome,
     )
 
     # (min_pos - index_translation) equals context_size, mapping locus positions to string indices
@@ -100,7 +101,7 @@ def variant_distance(v1: Any, v2: Any) -> Any:
     return v2.locus.position - v1.locus.position - hl.len(v1.alleles[0])
 
 
-def split_haplotypes(ht: Any, window_size: int) -> Any:
+def split_haplotypes(ht: hl.Table, window_size: int) -> hl.Table:
     """
     Split multi-variant haplotypes at gaps of at least `window_size` bases.
 
@@ -117,7 +118,7 @@ def split_haplotypes(ht: Any, window_size: int) -> Any:
         Hail table with haplotypes exploded into sub-haplotypes by window.
     """
     breakpoints = hl.range(1, hl.len(ht.variants)).filter(
-        lambda i: (i == 0) | (variant_distance(ht.variants[i - 1], ht.variants[i]) >= window_size)
+        lambda i: variant_distance(ht.variants[i - 1], ht.variants[i]) >= window_size
     )
 
     def get_range(i: Any) -> Any:
