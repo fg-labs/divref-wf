@@ -59,10 +59,10 @@ def test_get_haplo_sequence_single(
     hail_reference_genome.add_sequence(str(test_fasta), str(test_fai))
 
     variant = _make_variant(position=100, ref="A", alt="C")
-    x = get_haplo_sequence(
+    haplo_seq = get_haplo_sequence(
         context_size=2, variants=[variant], reference_genome=hail_reference_genome.name
     )
-    print(hl.str(x))
+    assert hl.eval(haplo_seq) == "CCCTC"
 
 
 def test_get_haplo_sequence_empty_list_raises() -> None:
