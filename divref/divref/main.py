@@ -5,10 +5,10 @@ from typing import List
 
 import defopt
 
-from divref.tools.hello import hello
+from divref.tools.extract_gnomad_afs import extract_gnomad_afs
 
 _tools: List[Callable[..., None]] = [
-    hello,
+    extract_gnomad_afs,
 ]
 
 
