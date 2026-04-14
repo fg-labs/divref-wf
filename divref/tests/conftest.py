@@ -2,7 +2,6 @@
 
 from collections.abc import Generator
 from pathlib import Path
-from typing import Any
 
 import hail as hl
 import pytest
@@ -28,7 +27,7 @@ def datadir() -> Path:
 
 
 @pytest.fixture
-def hail_reference_genome() -> Any:
+def hail_reference_genome(hail_context: None) -> hl.ReferenceGenome:  # noqa: ARG001
     """A small custom reference genome for use in testing."""
     contigs: list[str] = ["chr1"]
     lengths: dict[str, int] = {"chr1": 1000}
