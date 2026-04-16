@@ -1,4 +1,4 @@
-"""Tool to extract gnomAD variant and sample frequency data for the DivRef pipeline."""
+"""Tool to extract gnomAD sample metadata for the DivRef pipeline."""
 
 from pathlib import Path
 
