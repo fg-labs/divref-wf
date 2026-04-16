@@ -22,3 +22,6 @@
 
 # claude
 **/.claude
+
+# hail logs
+**/hail*.log
