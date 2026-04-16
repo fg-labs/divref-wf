@@ -1,8 +1,11 @@
 """Tool to export gnomAD variants above a frequency threshold as a VCF file."""
 
+from pathlib import Path
+
 import hail as hl
 
-from divref.haplotype import HailPath
+from divref.alias import HailPath
+from divref.hail import hail_init
 
 
 def create_gnomad_sites_vcf(
@@ -10,6 +13,7 @@ def create_gnomad_sites_vcf(
     sites_table_path: HailPath,
     output_vcf_path: HailPath,
     min_popmax: float,
+    gcs_credentials_path: Path = Path("~/.config/gcloud/application_default_credentials.json"),
 ) -> None:
     """
     Export gnomAD variant sites above a population frequency threshold as VCF.
@@ -19,12 +23,12 @@ def create_gnomad_sites_vcf(
     per-population frequency fields into VCF INFO format, and exports as VCF.
 
     Args:
-        sites_table_path: Path to the gnomAD variant annotations Hail table
-            (from extract_gnomad_afs).
+        sites_table_path: Path to the gnomAD variant annotations Hail table.
         output_vcf_path: Output path for the VCF file.
         min_popmax: Minimum allele frequency in any population to include a site.
+        gcs_credentials_path: Path to GCS default credentials JSON file.
     """
-    hl.init()
+    hail_init(gcs_credentials_path.expanduser())
 
     ht = hl.read_table(sites_table_path)
     pops: list[str] = ht.pops.collect()[0]
