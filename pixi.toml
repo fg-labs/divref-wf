@@ -62,3 +62,6 @@ else:
 
 lint = "snakefmt --line-length 100 workflows/*.smk"
 download = "snakemake -j1 -s workflows/download.smk"
+
+[dependencies]
+bcftools = ">=1.23.1,<2"
