@@ -24,7 +24,7 @@ gcloud auth application-default login
 
 ## Source Data
 
-### gnomAD 3.1.2 HGDP+1KG individual level genotypes and sample metadata
+### gnomAD 3.1.2 HGDP+1KG individual-level genotypes and sample metadata
 
 [Data description](https://gnomad.broadinstitute.org/news/2021-10-gnomad-v3-1-2-minor-release/)
 

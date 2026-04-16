@@ -38,6 +38,9 @@ def gnomad_hail_table_test_data(
         seed: Random sampling seed.
         gcs_credentials_path: Path to GCS default credentials JSON file.
     """
+    if not 0.0 <= sample_proportion <= 1.0:
+        raise ValueError("sample_proportion must be between 0.0 and 1.0")
+
     hail_init(gcs_credentials_path.expanduser())
 
     va = hl.read_table(in_gnomad_hgdp_variant_annotation_table)
