@@ -5,8 +5,8 @@ from typing import List
 
 import defopt
 
-from divref.tools.compute_haplotypes import compute_haplotypes
 from divref.tools.compute_haplotype_statistics import compute_haplotype_statistics
+from divref.tools.compute_haplotypes import compute_haplotypes
 from divref.tools.create_gnomad_sites_vcf import create_gnomad_sites_vcf
 from divref.tools.extract_gnomad_afs import extract_gnomad_afs
 from divref.tools.extract_sample_metadata import extract_sample_metadata
