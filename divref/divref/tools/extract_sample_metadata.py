@@ -7,9 +7,6 @@ import hail as hl
 from divref.alias import HailPath
 from divref.hail import hail_init
 
-DEFAULT_POPULATIONS: list[str] = ["afr", "amr", "eas", "sas", "nfe"]
-"""Default populations to extract AFs for."""
-
 
 def extract_sample_metadata(
     *,
