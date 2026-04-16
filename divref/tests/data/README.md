@@ -14,3 +14,14 @@ pixi run divref gnomad-hail-table-test-data \
   --out-variant-annotation-table chr1_100001_200000_0.01_seed42.ht \
   --out-sample-metadata hgdp_1kg_sample_metadata.ht
 ```
+
+The VCF file at [chr1_100001_200000.vcf.gz](chr1_100001_200000.vcf.gz) contains phased genotypes for all HGDP+1KG samples in the same locus as the Hail table above.
+
+```bash
+pixi run bcftools view \
+  --regions chr1:100001-200000 \
+  --output-type z \
+  --output chr1_100001_200000.vcf.gz \
+  --write-index=tbi \
+  gs://gcp-public-data--gnomad/resources/hgdp_1kg/phased_haplotypes_v2/hgdp1kgp_chr1.filtered.SNV_INDEL.phased.shapeit5.bcf
+```
