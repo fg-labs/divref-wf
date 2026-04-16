@@ -3,7 +3,7 @@
 import hail as hl
 from pydantic import BaseModel
 
-from divref.haplotype import HailPath
+from divref.alias import HailPath
 from divref.haplotype import split_haplotypes
 
 
