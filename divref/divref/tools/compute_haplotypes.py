@@ -161,7 +161,7 @@ def compute_haplotypes(
         gnomad_va_file: Path to the gnomAD variant annotations Hail table
             (from extract_gnomad_afs).
         gnomad_sa_file: Path to the gnomAD sample metadata Hail table
-            (from extract_gnomad_afs).
+            (from extract_sample_metadata).
         window_size: Base window size in bp for grouping variants into haplotypes.
         freq_threshold: Minimum gnomAD population allele frequency to retain a variant.
         output_base: Base output path; writes {output_base}.1.ht, {output_base}.2.ht,
