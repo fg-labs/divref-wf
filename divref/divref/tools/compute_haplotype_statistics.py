@@ -1,5 +1,7 @@
 """Tool to compute haplotype and gnomAD variant statistics across parameter combinations."""
 
+from pathlib import Path
+
 import hail as hl
 from pydantic import BaseModel
 
@@ -28,7 +30,7 @@ def compute_haplotype_statistics(
     gnomad_va_file: HailPath,
     window_sizes: list[int],
     frequency_cutoffs: list[float],
-    output_base: HailPath,
+    output_base: Path,
 ) -> None:
     """
     Compute haplotype and gnomAD variant statistics across frequency and window size parameters.
@@ -69,14 +71,13 @@ def compute_haplotype_statistics(
                 )
             )
 
-        gnomad_count = va.filter(
-            hl.max(va.pop_freqs.map(lambda x: hl.max(x.AF))) >= frequency
-        ).count()
+        gnomad_count = va.filter(hl.max(va.pop_freqs.map(lambda x: x.AF)) >= frequency).count()
         gnomad_results.append(
             _GnomADResult(frequency_cutoff=frequency, gnomad_variant_count=gnomad_count)
         )
 
-    with open(f"{output_base}.hgdp.tsv", "w") as f:
+    out_hgdp: Path = output_base.with_suffix(".hgdp.tsv")
+    with out_hgdp.open("w") as f:
         f.write("frequency\twindow_size\thgdp_haplotype_count\n")
         for hgdp_result in hgdp_results:
             f.write(
@@ -85,7 +86,8 @@ def compute_haplotype_statistics(
                 f"{hgdp_result.hgdp_haplotype_count}\n"
             )
 
-    with open(f"{output_base}.gnomad.tsv", "w") as f:
+    out_gnomad: Path = output_base.with_suffix(".gnomad.tsv")
+    with out_gnomad.open("w") as f:
         f.write("frequency\tgnomad_variant_count\n")
         for gnomad_result in gnomad_results:
             f.write(f"{gnomad_result.frequency_cutoff}\t{gnomad_result.gnomad_variant_count}\n")
