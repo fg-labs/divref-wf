@@ -3,11 +3,9 @@
 from typing import Any
 from unittest.mock import patch
 
-import pytest
+import hail as hl
 
-hl = pytest.importorskip("hail")
-
-from divref.haplotype import get_haplo_sequence  # noqa: E402
+from divref.haplotype import get_haplo_sequence
 
 
 def _create_variant(contig: str, position: int, ref: str, alt: str) -> Any:
@@ -55,7 +53,6 @@ def _create_reference_mock(reference_sequence: str) -> Any:
     return mock_get_sequence
 
 
-@pytest.mark.skip(reason="Requires a running Hail/Spark JVM context")
 def test_get_haplo_sequence_edge_cases() -> None:
     """Test get_haplo_sequence with SNPs, insertions, and deletions."""
     reference = "01234567891"

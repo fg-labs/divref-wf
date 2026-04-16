@@ -7,7 +7,7 @@ import duckdb
 import hail as hl
 import polars
 
-from divref.haplotype import HailPath
+from divref.alias import HailPath
 from divref.haplotype import get_haplo_sequence
 from divref.haplotype import split_haplotypes
 
