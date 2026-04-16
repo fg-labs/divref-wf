@@ -6,7 +6,7 @@ from typing import Callable
 
 import hail as hl
 
-from divref.haplotype import HailPath
+from divref.alias import HailPath
 
 logger = logging.getLogger(__name__)
 
