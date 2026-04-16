@@ -39,13 +39,13 @@ def test_compute_haplotypes(
     results: list[hl.Struct] = result.collect()
 
     # Each haplotype has >= 2 variants (single-variant haplotypes are filtered)
-    assert all([len(r.haplotype) >= 2 for r in results])
-    assert all([len(r.variants) == len(r.haplotype) for r in results])
-    assert all([len(r.gnomad_freqs) == len(r.haplotype) for r in results])
+    assert all(len(r.haplotype) >= 2 for r in results)
+    assert all(len(r.variants) == len(r.haplotype) for r in results)
+    assert all(len(r.gnomad_freqs) == len(r.haplotype) for r in results)
 
     # Population frequency summary fields are present
-    assert all([hasattr(r, "max_pop") for r in results])
-    assert all([hasattr(r, "max_empirical_AF") for r in results])
-    assert all([hasattr(r, "max_empirical_AC") for r in results])
-    assert all([hasattr(r, "all_pop_freqs") for r in results])
-    assert all([len(r.all_pop_freqs) > 0 for r in results])
+    assert all(hasattr(r, "max_pop") for r in results)
+    assert all(hasattr(r, "max_empirical_AF") for r in results)
+    assert all(hasattr(r, "max_empirical_AC") for r in results)
+    assert all(hasattr(r, "all_pop_freqs") for r in results)
+    assert all(len(r.all_pop_freqs) > 0 for r in results)
