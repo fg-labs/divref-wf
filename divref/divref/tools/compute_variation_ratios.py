@@ -30,6 +30,13 @@ def compute_variation_ratios(
         output_ht: Output path for the sample-level Hail table.
         frequency_thresholds: Frequency thresholds to calculate.
     """
+    if any(t < 0 or t > 1 for t in frequency_thresholds):
+        raise ValueError("All frequency_thresholds must be in [0, 1].")
+
+    threshold_keys = [format(t, ".6g") for t in frequency_thresholds]
+    if len(set(threshold_keys)) != len(threshold_keys):
+        raise ValueError("frequency_thresholds produce duplicate output field names.")
+
     hl.init()
 
     gnomad_sa = hl.read_table(gnomad_sa_file)
@@ -39,13 +46,15 @@ def compute_variation_ratios(
     mt = mt.select_rows().select_cols()
     mt = mt.annotate_rows(freq=gnomad_va[mt.row_key].pop_freqs)
     mt = mt.filter_rows(hl.is_defined(mt.freq))
-    mt = mt.annotate_rows(max_pop_freq=hl.max(mt.freq.map(lambda x: hl.max(x.AF))))
+    mt = mt.annotate_rows(max_pop_freq=hl.max(mt.freq.map(lambda x: x.AF)))
 
     mt = mt.annotate_cols(pop=gnomad_sa[mt.col_key].pop)
     mt = mt.annotate_cols(
         counts=hl.struct(**{
-            f"n_sites_above_{x}": hl.agg.count_where(mt.GT.is_non_ref() & (mt.max_pop_freq > x))
-            for x in frequency_thresholds
+            f"n_sites_above_{key.replace('.', '_')}": hl.agg.count_where(
+                mt.GT.is_non_ref() & (mt.max_pop_freq > threshold)
+            )
+            for threshold, key in zip(frequency_thresholds, threshold_keys, strict=True)
         })
     )
 
