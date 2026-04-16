@@ -15,7 +15,7 @@ def test_extract_gnomad_afs(
     tmp_path: Path,
 ) -> None:
     """Happy-path: extract AFs from local test variant and sample data."""
-    in_sites = str(datadir / "chr1_100001_200000_0.01_seed42.ht")
+    in_sites = str(datadir / "chr1_100001_200000.ht")
     out_va = str(tmp_path / "va.ht")
 
     with patch("divref.tools.extract_gnomad_afs.hail_init"):
@@ -30,7 +30,7 @@ def test_extract_gnomad_afs(
 
     va = hl.read_table(out_va)
     va_count = va.count()
-    assert va_count == 11
+    assert va_count == 966
 
     # Globals should contain the requested populations
     pops = hl.eval(va.globals.pops)

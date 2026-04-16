@@ -17,7 +17,7 @@ def test_create_gnomad_sites_vcf(
 ) -> None:
     """Happy-path: filter extracted AFs and export as VCF."""
     # --- setup: run extract_gnomad_afs to produce the input table ---
-    in_sites = str(datadir / "chr1_100001_200000_0.01_seed42.ht")
+    in_sites = str(datadir / "chr1_100001_200000.ht")
     extracted_table = str(tmp_path / "extracted.ht")
 
     with patch("divref.tools.extract_gnomad_afs.hail_init"):
@@ -42,7 +42,7 @@ def test_create_gnomad_sites_vcf(
     # --- assert: VCF file is valid ---
     vcf = hl.import_vcf(output_vcf, reference_genome=defaults.REFERENCE_GENOME)
     vcf_count = vcf.count_rows()
-    assert vcf_count == 3
+    assert vcf_count == 333
 
     # INFO fields should contain population-prefixed frequency entries
     info_fields = list(vcf.row.info.dtype)
