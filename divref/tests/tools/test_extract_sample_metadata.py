@@ -1,4 +1,4 @@
-"""Tests for the extract_gnomad_afs tool."""
+"""Tests for the extract_sample_metadata tool."""
 
 from pathlib import Path
 from unittest.mock import patch
