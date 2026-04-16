@@ -23,7 +23,8 @@ def create_gnomad_sites_vcf(
     per-population frequency fields into VCF INFO format, and exports as VCF.
 
     Args:
-        sites_table_path: Path to the gnomAD variant annotations Hail table.
+        sites_table_path: Path to the gnomAD variant annotations Hail table output from
+            `extract-gnomad-afs`.
         output_vcf_path: Output path for the VCF file.
         min_popmax: Minimum allele frequency in any population to include a site.
         gcs_credentials_path: Path to GCS default credentials JSON file.
@@ -33,7 +34,7 @@ def create_gnomad_sites_vcf(
     ht = hl.read_table(sites_table_path)
     pops: list[str] = ht.pops.collect()[0]
 
-    filt = ht.filter(hl.max(ht.pop_freqs[0].map(lambda x: x.AF)) >= min_popmax)
+    filt = ht.filter(hl.max(ht.pop_freqs.map(lambda x: x.AF)) >= min_popmax)
     filt = filt.annotate(
         info=hl.struct(**{
             f"{pop}_{fd}": filt.pop_freqs[i][fd]
