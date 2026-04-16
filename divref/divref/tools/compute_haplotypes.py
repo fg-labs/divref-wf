@@ -6,6 +6,7 @@ from typing import Callable
 
 import hail as hl
 
+from divref import defaults
 from divref.alias import HailPath
 
 logger = logging.getLogger(__name__)
@@ -173,7 +174,9 @@ def compute_haplotypes(
     gnomad_va = hl.read_table(gnomad_va_file)
     gnomad_va = gnomad_va.filter(hl.max(gnomad_va.pop_freqs.map(lambda x: x.AF)) >= freq_threshold)
 
-    mt = hl.import_vcf(vcfs_path, reference_genome="GRCh38", min_partitions=64)
+    mt = hl.import_vcf(
+        vcfs_path, reference_genome=defaults.REFERENCE_GENOME, min_partitions=64, force_bgz=True
+    )
     mt = mt.select_rows().select_cols()
     mt = mt.annotate_rows(freq=gnomad_va[mt.row_key].pop_freqs)
     mt = mt.filter_rows(hl.is_defined(mt.freq))
