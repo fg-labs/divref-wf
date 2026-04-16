@@ -22,8 +22,10 @@ def test_extract_gnomad_afs(
         extract_gnomad_afs(
             in_gnomad_sites_table=in_sites,
             out_variant_annotation_table=out_va,
+            contig="chr1",
             freq_threshold=0.001,
             populations=defaults.POPULATIONS,
+            reference_genome=defaults.REFERENCE_GENOME,
         )
 
     va = hl.read_table(out_va)

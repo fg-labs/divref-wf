@@ -6,6 +6,8 @@ from typing import TypeVar
 
 import hail as hl
 
+from divref import defaults
+
 _V = TypeVar("_V", bound=Hashable)
 """Type variable for hashable dictionary values used in to_hashable_items."""
 
@@ -23,7 +25,9 @@ def to_hashable_items(d: dict[str, _V]) -> tuple[tuple[str, _V], ...]:
     return tuple(sorted(d.items()))
 
 
-def get_haplo_sequence(context_size: int, variants: Any, reference_genome: str = "GRCh38") -> Any:
+def get_haplo_sequence(
+    context_size: int, variants: Any, reference_genome: str = defaults.REFERENCE_GENOME
+) -> Any:
     """
     Construct a haplotype sequence string with flanking genomic context.
 

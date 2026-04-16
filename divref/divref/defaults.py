@@ -14,3 +14,6 @@ GNOMAD_HGDP_1KG_SAMPLE_METADATA_HAIL_TABLE: Final[HailPath] = (
 
 POPULATIONS: list[str] = ["afr", "amr", "eas", "sas", "nfe"]
 """Default HGDP+1KG populations."""
+
+REFERENCE_GENOME: str = "GRCh38"
+"""Default reference genome assembly."""

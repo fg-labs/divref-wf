@@ -14,8 +14,10 @@ def extract_gnomad_afs(
     *,
     in_gnomad_sites_table: HailPath,
     out_variant_annotation_table: HailPath,
+    contig: str,
     freq_threshold: float = 0.001,
     populations: list[str] = defaults.POPULATIONS,
+    reference_genome: str = defaults.REFERENCE_GENOME,
     gcs_credentials_path: Path = Path("~/.config/gcloud/application_default_credentials.json"),
 ) -> None:
     """
@@ -28,13 +30,17 @@ def extract_gnomad_afs(
     Args:
         in_gnomad_sites_table: Path to the gnomAD HGDP/1KG sites table.
         out_variant_annotation_table: Output path for the variant annotation Hail table.
+        contig: Contig to extract sites.
         freq_threshold: Minimum allele frequency in any population to retain a variant.
         populations: List of population codes to extract frequencies for.
+        reference_genome: Reference genome to use. Defaults to "GRCh38".
         gcs_credentials_path: Path to GCS default credentials JSON file.
     """
     hail_init(gcs_credentials_path.expanduser())
 
-    va = hl.read_table(in_gnomad_sites_table)
+    va_all = hl.read_table(in_gnomad_sites_table)
+    interval = hl.parse_locus_interval(contig, reference_genome=reference_genome)
+    va = hl.filter_intervals(va_all, [interval])
 
     freq_meta = va.globals.gnomad_freq_meta.collect()[0]
     map_to_index = {to_hashable_items(x): i for i, x in enumerate(freq_meta)}
