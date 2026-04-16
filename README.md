@@ -15,3 +15,9 @@ Follow the developer [instructions](https://pixi.sh/latest/installation/) to ins
 The environment and dependencies are automatically created and installed when calling `pixi install` for the first time.
 
 To enable access to Hail tables via the GCS Connector, run `pixi setup-gcs`.
+
+You will need to log in to GCS before running any of the Hail-dependent tools.
+
+```bash
+gcloud auth application-default login
+```
