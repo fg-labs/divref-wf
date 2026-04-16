@@ -2,7 +2,7 @@
 
 import hail as hl
 
-from divref.haplotype import HailPath
+from divref.alias import HailPath
 
 _FREQ_THRESHOLDS = [0, 0.0001, 0.001, 0.005, 0.01, 0.05, 0.1]
 
