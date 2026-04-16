@@ -5,6 +5,7 @@ from pathlib import Path
 import hail as hl
 
 from divref.alias import HailPath
+from divref.hail import hail_init
 from divref.haplotype import to_hashable_items
 
 DEFAULT_POPULATIONS: list[str] = ["afr", "amr", "eas", "sas", "nfe"]
@@ -37,11 +38,11 @@ def extract_gnomad_afs(
         populations: List of population codes to extract frequencies for.
         gcs_credentials_path: Path to GCS default credentials JSON file.
     """
-    hl.init(gcs_credentials_path.expanduser())
+    hail_init(gcs_credentials_path.expanduser())
 
     va = hl.read_table(in_gnomad_sites_table)
 
-    freq_meta = va.globals.gnomad_freq_meta[:15].collect()[0]
+    freq_meta = va.globals.gnomad_freq_meta.collect()[0]
     map_to_index = {to_hashable_items(x): i for i, x in enumerate(freq_meta)}
 
     pop_indices = []

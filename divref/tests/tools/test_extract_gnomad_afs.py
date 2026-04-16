@@ -20,7 +20,7 @@ def test_extract_gnomad_afs(
     out_va = str(tmp_path / "va.ht")
     out_sa = str(tmp_path / "sa.ht")
 
-    with patch("divref.tools.extract_gnomad_afs.hl.init"):
+    with patch("divref.tools.extract_gnomad_afs.hail_init"):
         extract_gnomad_afs(
             in_gnomad_sites_table=in_sites,
             in_gnomad_hgdp_sample_data=in_samples,
