@@ -5,12 +5,14 @@ from typing import List
 
 import defopt
 
+from divref.tools.compute_haplotypes import compute_haplotypes
 from divref.tools.create_gnomad_sites_vcf import create_gnomad_sites_vcf
 from divref.tools.extract_gnomad_afs import extract_gnomad_afs
 from divref.tools.extract_sample_metadata import extract_sample_metadata
 from divref.tools.gnomad_hail_table_test_data import gnomad_hail_table_test_data
 
 _tools: List[Callable[..., None]] = [
+    compute_haplotypes,
     create_gnomad_sites_vcf,
     extract_gnomad_afs,
     extract_sample_metadata,
