@@ -27,4 +27,4 @@
 **/hail*.log
 
 # CSI indexes from accessing BCF files
-**/*.CSI
+**/*.csi
