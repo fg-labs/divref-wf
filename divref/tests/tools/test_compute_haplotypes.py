@@ -5,10 +5,7 @@ from unittest.mock import patch
 
 import hail as hl
 
-from divref import defaults
 from divref.tools.compute_haplotypes import compute_haplotypes
-from divref.tools.extract_gnomad_afs import extract_gnomad_afs
-from divref.tools.extract_sample_metadata import extract_sample_metadata
 
 
 def test_compute_haplotypes(
@@ -17,36 +14,17 @@ def test_compute_haplotypes(
     tmp_path: Path,
 ) -> None:
     """Happy-path: compute haplotypes from test VCF with gnomAD annotations."""
-    # --- setup: produce VA and SA tables from test data ---
-    in_sites = str(datadir / "chr1_100001_200000.ht")
-    in_samples = str(datadir / "hgdp_1kg_sample_metadata.ht")
-    va_path = str(tmp_path / "va.ht")
-    sa_path = str(tmp_path / "sa.ht")
-
-    with patch("divref.tools.extract_gnomad_afs.hail_init"):
-        extract_gnomad_afs(
-            in_gnomad_sites_table=in_sites,
-            out_variant_annotation_table=va_path,
-            contig="chr1",
-            populations=defaults.POPULATIONS,
-            reference_genome=defaults.REFERENCE_GENOME,
-        )
-
-    with patch("divref.tools.extract_sample_metadata.hail_init"):
-        extract_sample_metadata(
-            in_gnomad_hgdp_sample_data=in_samples,
-            out_sample_metadata=sa_path,
-        )
-
     # --- act ---
+    in_sites = str(datadir / "chr1_100001_200000.gnomad_afs.ht")
+    in_samples = str(datadir / "hgdp_1kg_sample_metadata.extract.ht")
     vcf_path = str(datadir / "chr1_100001_200000.vcf.gz")
     output_base = str(tmp_path / "haplos")
 
     with patch("divref.tools.compute_haplotypes.hl.init"):
         compute_haplotypes(
             vcfs_path=vcf_path,
-            gnomad_va_file=va_path,
-            gnomad_sa_file=sa_path,
+            gnomad_va_file=in_sites,
+            gnomad_sa_file=in_samples,
             window_size=5000,
             freq_threshold=0.005,
             output_base=output_base,

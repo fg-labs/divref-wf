@@ -23,3 +23,33 @@ pixi run bcftools view \
   --write-index=tbi \
   gs://gcp-public-data--gnomad/resources/hgdp_1kg/phased_haplotypes_v2/hgdp1kgp_chr1.filtered.SNV_INDEL.phased.shapeit5.bcf
 ```
+
+Because each tool depends on the output of one or more previous tools, to avoid repeating calls to the tools for each test, we generate intermediate files.
+
+```bash
+pixi run divref extract-gnomad-afs \
+    --in-gnomad-sites-table chr1_100001_200000.ht \
+    --out-variant-annotation-table chr1_100001_200000.gnomad_afs.ht \
+    --contig chr1 \
+    --freq-threshold 0.001
+
+pixi run divref extract-sample-metadata \
+    --in-gnomad-hgdp-sample-data hgdp_1kg_sample_metadata.ht \
+    --out-sample-metadata hgdp_1kg_sample_metadata.extract.ht
+
+pixi run divref create-gnomad-sites-vcf \
+    --sites-table-path chr1_100001_200000.gnomad_afs.ht \
+    --output-vcf-path chr1_100001_200000.gnomad_sites.vcf.bgz \
+    --min-popmax 0.01
+
+pixi run divref compute-haplotypes \
+    --vcfs-path chr1_100001_200000.vcf.gz \
+    --gnomad-va-file chr1_100001_200000.gnomad_afs.ht \
+    --gnomad-sa-file hgdp_1kg_sample_metadata.extract.ht \
+    --window-size 5000 \
+    --freq-threshold 0.005 \
+    --output-base chr1_100001_200000_haplotypes
+
+# These are intermediate checkpoint files that can be removed
+rm -r chr1_100001_200000_haplotypes.1.ht chr1_100001_200000_haplotypes.2.ht
+```
