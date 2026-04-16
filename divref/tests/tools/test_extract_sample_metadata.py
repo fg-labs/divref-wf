@@ -13,7 +13,7 @@ def test_extract_sample_metadata(
     datadir: Path,
     tmp_path: Path,
 ) -> None:
-    """Happy-path: extract AFs from local test variant and sample data."""
+    """Happy-path: extract sample metadata from local test data."""
     in_samples = str(datadir / "hgdp_1kg_sample_metadata.ht")
     out_sa = str(tmp_path / "sa.ht")
 
