@@ -12,4 +12,6 @@
 The environment for this analysis is managed using `pixi`.
 Follow the developer [instructions](https://pixi.sh/latest/installation/) to install `pixi`.
 
-The environment and dependencies are automatically created and installed when calling `pixi run <cmd>` for the first time.
+The environment and dependencies are automatically created and installed when calling `pixi install` for the first time.
+
+To enable access to Hail tables via the GCS Connector, run `pixi setup-gcs`.

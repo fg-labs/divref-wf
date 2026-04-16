@@ -6,9 +6,6 @@ from typing import TypeVar
 
 import hail as hl
 
-HailPath = str
-"""Type alias for filesystem paths accepted by Hail: local, GCS (gs://), or HDFS (hdfs://)."""
-
 _V = TypeVar("_V", bound=Hashable)
 """Type variable for hashable dictionary values used in to_hashable_items."""
 
