@@ -59,9 +59,9 @@ def compute_haplotype_statistics(
     gnomad_results: list[_GnomADResult] = []
 
     for frequency in frequency_cutoffs:
+        ht_filtered = ht.filter(hl.max(ht.all_pop_freqs.map(lambda x: x.empirical_AF)) >= frequency)
         for window_size in window_sizes:
-            ht2 = ht.filter(hl.max(ht.all_pop_freqs.map(lambda x: x.empirical_AF)) >= frequency)
-            ht2 = split_haplotypes(ht2, window_size)
+            ht2 = split_haplotypes(ht_filtered, window_size)
             n_unique = ht2.key_by("haplotype").distinct().key_by().count()
             hgdp_results.append(
                 _HGDPResult(
