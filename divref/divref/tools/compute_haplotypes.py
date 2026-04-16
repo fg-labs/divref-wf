@@ -84,7 +84,7 @@ def _get_haplotypes(
                 pop=pop,
                 empirical_AC=n_observed,
                 min_variant_frequency=hl.min(component_variant_frequencies.map(lambda x: x.AF[1])),
-                empirical_AF=n_observed / min_an,
+                empirical_AF=hl.if_else(min_an > 0, n_observed / min_an, hl.missing(hl.tfloat64)),
             )
 
         return hl.array(hl.group_by(lambda x: x[0], flat)).map(map_haplo_group)
