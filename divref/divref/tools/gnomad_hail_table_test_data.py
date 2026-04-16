@@ -44,7 +44,7 @@ def gnomad_hail_table_test_data(
     hail_init(gcs_credentials_path.expanduser())
 
     va = hl.read_table(in_gnomad_hgdp_variant_annotation_table)
-    roi = [hl.parse_locus_interval(locus, reference_genome="GRCh38")]
+    roi = [hl.parse_locus_interval(locus, reference_genome=defaults.REFERENCE_GENOME)]
 
     logger.info(f"Filtering to {locus} and sampling {sample_proportion} of variants.")
     va_subset = hl.filter_intervals(va, roi).sample(sample_proportion, seed)

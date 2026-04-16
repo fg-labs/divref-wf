@@ -39,7 +39,7 @@ setup-gcs = """
 python -c "
 import os, urllib.request, zipfile, hashlib
 jar = os.path.join(__import__('pyspark').__path__[0], 'jars', 'gcs-connector.jar')
-expected_sha256 = "d53cd19ec2fadc3f81319a1dcf3f70940915a674781c29a7067ea6021ae8dfe2"
+expected_sha256 = 'd53cd19ec2fadc3f81319a1dcf3f70940915a674781c29a7067ea6021ae8dfe2'
 valid = False
 if os.path.exists(jar):
     try:

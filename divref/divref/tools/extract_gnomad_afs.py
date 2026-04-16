@@ -4,22 +4,20 @@ from pathlib import Path
 
 import hail as hl
 
+from divref import defaults
 from divref.alias import HailPath
 from divref.hail import hail_init
 from divref.haplotype import to_hashable_items
-
-DEFAULT_POPULATIONS: list[str] = ["afr", "amr", "eas", "sas", "nfe"]
-"""Default populations to extract AFs for."""
 
 
 def extract_gnomad_afs(
     *,
     in_gnomad_sites_table: HailPath,
-    in_gnomad_hgdp_sample_data: HailPath,
     out_variant_annotation_table: HailPath,
-    out_sample_metadata: HailPath,
+    contig: str,
     freq_threshold: float = 0.001,
-    populations: list[str] = DEFAULT_POPULATIONS,
+    populations: list[str] = defaults.POPULATIONS,
+    reference_genome: str = defaults.REFERENCE_GENOME,
     gcs_credentials_path: Path = Path("~/.config/gcloud/application_default_credentials.json"),
 ) -> None:
     """
@@ -31,16 +29,18 @@ def extract_gnomad_afs(
 
     Args:
         in_gnomad_sites_table: Path to the gnomAD HGDP/1KG sites table.
-        in_gnomad_hgdp_sample_data: Path to the gnomAD HGDP/1KG sample metadata table.
         out_variant_annotation_table: Output path for the variant annotation Hail table.
-        out_sample_metadata: Output path for the sample metadata Hail table.
+        contig: Contig to extract sites.
         freq_threshold: Minimum allele frequency in any population to retain a variant.
         populations: List of population codes to extract frequencies for.
+        reference_genome: Reference genome to use. Defaults to "GRCh38".
         gcs_credentials_path: Path to GCS default credentials JSON file.
     """
     hail_init(gcs_credentials_path.expanduser())
 
-    va = hl.read_table(in_gnomad_sites_table)
+    va_all = hl.read_table(in_gnomad_sites_table)
+    interval = hl.parse_locus_interval(contig, reference_genome=reference_genome)
+    va = hl.filter_intervals(va_all, [interval])
 
     freq_meta = va.globals.gnomad_freq_meta.collect()[0]
     map_to_index = {to_hashable_items(x): i for i, x in enumerate(freq_meta)}
@@ -59,7 +59,3 @@ def extract_gnomad_afs(
     va = va.select(pop_freqs=hl.literal(pop_indices).map(lambda i: va.gnomad_freq[i]))
     va = va.filter(hl.any(lambda x: x.AF > freq_threshold, va.pop_freqs))
     va.naive_coalesce(64).write(out_variant_annotation_table, overwrite=True)
-
-    sa = hl.read_table(in_gnomad_hgdp_sample_data).select_globals()
-    sa = sa.select(pop=sa.gnomad_population_inference.pop)
-    sa.naive_coalesce(4).write(out_sample_metadata, overwrite=True)
