@@ -2,9 +2,8 @@
 
 import hail as hl
 
+from divref import defaults
 from divref.alias import HailPath
-
-_FREQ_THRESHOLDS = [0, 0.0001, 0.001, 0.005, 0.01, 0.05, 0.1]
 
 
 def compute_variation_ratios(
@@ -13,6 +12,7 @@ def compute_variation_ratios(
     gnomad_va_file: HailPath,
     gnomad_sa_file: HailPath,
     output_ht: HailPath,
+    frequency_thresholds: list[float] = defaults.VARIATION_RATIO_FREQUENCY_THRESHOLDS,
 ) -> None:
     """
     Compute per-sample counts of non-reference variant sites across frequency thresholds.
@@ -28,6 +28,7 @@ def compute_variation_ratios(
         gnomad_sa_file: Path to the gnomAD sample metadata Hail table
             (from extract_gnomad_afs).
         output_ht: Output path for the sample-level Hail table.
+        frequency_thresholds: Frequency thresholds to calculate.
     """
     hl.init()
 
@@ -44,7 +45,7 @@ def compute_variation_ratios(
     mt = mt.annotate_cols(
         counts=hl.struct(**{
             f"n_sites_above_{x}": hl.agg.count_where(mt.GT.is_non_ref() & (mt.max_pop_freq > x))
-            for x in _FREQ_THRESHOLDS
+            for x in frequency_thresholds
         })
     )
 
