@@ -225,7 +225,7 @@ def _translate_coordinate_to_ref(
 
 def _get_index_connection(index_path: Optional[Path]) -> duckdb.DuckDBPyConnection:
     if index_path is None:
-        for root, _dirs, files in os.walk(Path(__file__).parent):
+        for root, _dirs, files in os.walk(Path.cwd()):
             for file in files:
                 if file.endswith(".duckdb"):
                     index_path = Path(root) / file
@@ -268,16 +268,31 @@ def remap_divref(
     start_field = "coordinate_start"
     end_field = "coordinate_end"
 
-    if not all(x in df.columns for x in (chrom_field, start_field, end_field)):
-        raise ValueError(
-            f"Required fields not found in input file: {chrom_field}, {start_field}, {end_field}"
-        )
+    required_fields = (
+        chrom_field,
+        start_field,
+        end_field,
+        "strand",
+        "padded_target",
+        "unpadded_target_sequence",
+    )
+    if not all(x in df.columns for x in required_fields):
+        raise ValueError(f"Required fields not found in input file: {', '.join(required_fields)}")
 
     if df[chrom_field].dtype != object:
         df[chrom_field] = df[chrom_field].astype(str)
 
-    version: str = conn.execute("SELECT * FROM VERSION").fetchone()[0]  # type: ignore[index]
-    window_size: int = conn.execute("SELECT * FROM window_size").fetchone()[0]  # type: ignore[index]
+    version_row = conn.execute("SELECT * FROM VERSION").fetchone()
+    if version_row is None:
+        raise RuntimeError("Index is missing VERSION table — ensure this is a valid DivRef index.")
+    version: str = version_row[0]
+
+    window_size_row = conn.execute("SELECT * FROM window_size").fetchone()
+    if window_size_row is None:
+        raise RuntimeError(
+            "Index is missing window_size table — ensure this is a valid DivRef index."
+        )
+    window_size: int = window_size_row[0]
 
     contigs: list[str] = []
     starts: list[int] = []
@@ -361,5 +376,5 @@ def remap_divref(
     df["variant_source"] = source
     df["population_frequencies_json"] = all_pop_freqs_json
 
-    df.to_csv(output_path, sep=separator, index=False, quoting=csv.QUOTE_NONE)
+    df.to_csv(output_path, sep=separator, index=False, quoting=csv.QUOTE_MINIMAL)
     logger.info("Wrote remapped output to %s", output_path)
