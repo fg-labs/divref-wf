@@ -2,6 +2,8 @@
 
 from typing import Any
 
+import pytest
+
 from divref.tools.remap_divref import Haplotype
 from divref.tools.remap_divref import ReferenceMapping
 from divref.tools.remap_divref import Variant
@@ -279,3 +281,29 @@ def test_parse_pop_freqs_nulls_become_zero() -> None:
 
 def test_parse_pop_freqs_single_null() -> None:
     assert _parse_pop_freqs("null") == [0.0]
+
+
+# ---------------------------------------------------------------------------
+# Error paths: malformed variant strings
+# ---------------------------------------------------------------------------
+
+
+def test_parsed_variants_empty_string_raises() -> None:
+    # variants="" yields one empty token which cannot be split into 4 fields.
+    hap = create_haplotype(variants="", n_variants=0)
+    with pytest.raises(ValueError):
+        hap.parsed_variants()
+
+
+def test_parsed_variants_too_few_fields_raises() -> None:
+    # "chr1:100:A" has only 3 colon-delimited fields; unpacking into 4 raises ValueError.
+    hap = create_haplotype(variants="chr1:100:A", n_variants=1)
+    with pytest.raises(ValueError):
+        hap.parsed_variants()
+
+
+def test_contig_malformed_variants_raises() -> None:
+    # contig() delegates to parsed_variants(), so a malformed string propagates the error.
+    hap = create_haplotype(variants="", n_variants=0)
+    with pytest.raises(ValueError):
+        hap.contig()
