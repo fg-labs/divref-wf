@@ -28,7 +28,7 @@ def test_compute_haplotypes(
             window_size=5000,
             freq_threshold=0.005,
             output_base=output_base,
-            temp_dir=str(tmp_path / "hail_tmp"),
+            temp_dir=tmp_path / "hail_tmp",
         )
 
     # --- assert ---

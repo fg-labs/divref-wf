@@ -10,6 +10,7 @@ from divref.tools.compute_haplotypes import compute_haplotypes
 from divref.tools.compute_variation_ratios import compute_variation_ratios
 from divref.tools.create_gnomad_sites_vcf import create_gnomad_sites_vcf
 from divref.tools.extract_gnomad_afs import extract_gnomad_afs
+from divref.tools.extract_gnomad_single_afs import extract_gnomad_single_afs
 from divref.tools.extract_sample_metadata import extract_sample_metadata
 from divref.tools.gnomad_hail_table_test_data import gnomad_hail_table_test_data
 
@@ -19,13 +20,19 @@ _tools: List[Callable[..., None]] = [
     compute_variation_ratios,
     create_gnomad_sites_vcf,
     extract_gnomad_afs,
+    extract_gnomad_single_afs,
     extract_sample_metadata,
     gnomad_hail_table_test_data,
 ]
 
 
 def setup_logging(level: str = "INFO") -> None:
-    """Set up basic logging to print to the console."""
+    """
+    Set up basic logging to print to the console.
+
+    Args:
+        level: Logging level string (e.g. "INFO", "DEBUG", "WARNING").
+    """
     logging.basicConfig(
         level=level,
         format="%(asctime)s %(name)s:%(funcName)s:%(lineno)s [%(levelname)s]: %(message)s",

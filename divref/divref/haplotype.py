@@ -1,12 +1,12 @@
 """Shared utilities for Hail-based DivRef pipeline tools."""
 
-from typing import Any
 from typing import Hashable
 from typing import TypeVar
 
 import hail as hl
 
 from divref import defaults
+from divref.alias import HailExpression
 
 _V = TypeVar("_V", bound=Hashable)
 """Type variable for hashable dictionary values used in to_hashable_items."""
@@ -26,8 +26,10 @@ def to_hashable_items(d: dict[str, _V]) -> tuple[tuple[str, _V], ...]:
 
 
 def get_haplo_sequence(
-    context_size: int, variants: Any, reference_genome: str = defaults.REFERENCE_GENOME
-) -> Any:
+    context_size: int,
+    variants: HailExpression,
+    reference_genome: str = defaults.REFERENCE_GENOME,
+) -> HailExpression:
     """
     Construct a haplotype sequence string with flanking genomic context.
 
@@ -68,7 +70,17 @@ def get_haplo_sequence(
     # (min_pos - index_translation) equals context_size, mapping locus positions to string indices
     index_translation = min_pos - context_size
 
-    def get_chunk_until_next_variant(i: Any) -> Any:
+    def get_chunk_until_next_variant(i: HailExpression) -> HailExpression:
+        """
+        Return the alternate allele plus intervening reference bases up to the next variant.
+
+        Args:
+            i: Hail integer expression indexing into sorted_variants.
+
+        Returns:
+            Hail string expression for the alternate allele concatenated with the
+            reference bases between this variant and the next (or the trailing context).
+        """
         v = sorted_variants[i]
         variant_size = hl.len(v.alleles[0])
         reference_buffer_size = hl.if_else(
@@ -85,7 +97,7 @@ def get_haplo_sequence(
     )
 
 
-def variant_distance(v1: Any, v2: Any) -> Any:
+def variant_distance(v1: HailExpression, v2: HailExpression) -> HailExpression:
     """
     Calculate the number of reference bases between two variants.
 
@@ -122,7 +134,16 @@ def split_haplotypes(ht: hl.Table, window_size: int) -> hl.Table:
         lambda i: variant_distance(ht.variants[i - 1], ht.variants[i]) >= window_size
     )
 
-    def get_range(i: Any) -> Any:
+    def get_range(i: HailExpression) -> HailExpression:
+        """
+        Return the range of variant indices for the i-th haplotype segment.
+
+        Args:
+            i: Hail integer expression for the segment index.
+
+        Returns:
+            Hail range expression of variant indices belonging to segment i.
+        """
         start_index = hl.if_else(i == 0, 0, breakpoints[i - 1])
         end_index = hl.if_else(i == hl.len(breakpoints), hl.len(ht.variants), breakpoints[i])
         return hl.range(start_index, end_index)
