@@ -114,7 +114,7 @@ module = "defopt"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["hail", "hail.*", "tqdm", "tqdm.*"]
+module = ["hail", "hail.*", "pandas", "pandas.*", "tqdm", "tqdm.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
