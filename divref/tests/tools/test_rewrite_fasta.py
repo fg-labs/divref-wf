@@ -12,18 +12,21 @@ def _write_fasta(path: Path, contigs: list[tuple[str, str]]) -> None:
 
 
 def test_keeps_canonical_autosomes(tmp_path: Path) -> None:
+    """rewrite_fasta should retain canonical autosomes (chr1–chr22) in the output."""
     _write_fasta(tmp_path / "in.fa", [("chr1", "ACGT"), ("chr22", "TTTT")])
     rewrite_fasta(fasta_path=tmp_path / "in.fa", output_path=tmp_path / "out.fa")
     assert (tmp_path / "out.fa").read_text() == ">chr1\nACGT\n>chr22\nTTTT\n"
 
 
 def test_keeps_sex_and_mt_chromosomes(tmp_path: Path) -> None:
+    """rewrite_fasta should retain sex chromosomes (chrX, chrY) and mitochondrial (chrMT)."""
     _write_fasta(tmp_path / "in.fa", [("chrX", "AAAA"), ("chrY", "CCCC"), ("chrMT", "GGGG")])
     rewrite_fasta(fasta_path=tmp_path / "in.fa", output_path=tmp_path / "out.fa")
     assert (tmp_path / "out.fa").read_text() == ">chrX\nAAAA\n>chrY\nCCCC\n>chrMT\nGGGG\n"
 
 
 def test_filters_non_canonical(tmp_path: Path) -> None:
+    """rewrite_fasta should filter out non-canonical contigs (alt, unlocalized, unplaced)."""
     _write_fasta(
         tmp_path / "in.fa",
         [("chr1", "ACGT"), ("chr1_alt", "AAAA"), ("chrUn_gl000220", "TTTT")],
@@ -33,6 +36,7 @@ def test_filters_non_canonical(tmp_path: Path) -> None:
 
 
 def test_mixed_canonical_and_non_canonical(tmp_path: Path) -> None:
+    """rewrite_fasta should keep only canonical contigs when mixed with non-canonical ones."""
     _write_fasta(
         tmp_path / "in.fa",
         [("chr1", "ACGT"), ("chr1_alt", "AAAA"), ("chr2", "TTTT"), ("chrEBV", "CCCC")],
@@ -42,12 +46,14 @@ def test_mixed_canonical_and_non_canonical(tmp_path: Path) -> None:
 
 
 def test_empty_fasta(tmp_path: Path) -> None:
+    """rewrite_fasta should produce an empty output file for an empty input FASTA."""
     (tmp_path / "in.fa").write_text("")
     rewrite_fasta(fasta_path=tmp_path / "in.fa", output_path=tmp_path / "out.fa")
     assert (tmp_path / "out.fa").read_text() == ""
 
 
 def test_multiline_sequence_preserved(tmp_path: Path) -> None:
+    """rewrite_fasta should preserve multi-line sequences for canonical contigs."""
     (tmp_path / "in.fa").write_text(">chr1\nACGT\nTGCA\n>chr1_alt\nAAAA\n")
     rewrite_fasta(fasta_path=tmp_path / "in.fa", output_path=tmp_path / "out.fa")
     assert (tmp_path / "out.fa").read_text() == ">chr1\nACGT\nTGCA\n"

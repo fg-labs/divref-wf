@@ -15,7 +15,7 @@ def test_extract_sample_metadata(
 ) -> None:
     """Happy-path: extract sample metadata from local test data."""
     in_samples = str(datadir / "hgdp_1kg_sample_metadata.ht")
-    out_sa = str(tmp_path / "sa.ht")
+    out_sa = tmp_path / "sa.ht"
 
     with patch("divref.tools.extract_sample_metadata.hail_init"):
         extract_sample_metadata(
@@ -23,7 +23,7 @@ def test_extract_sample_metadata(
             out_sample_metadata=out_sa,
         )
 
-    sa = hl.read_table(out_sa)
+    sa = hl.read_table(str(out_sa))
     sa_count = sa.count()
     assert sa_count == 4151
 
