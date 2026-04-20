@@ -7,7 +7,6 @@ from typing import Callable
 import hail as hl
 
 from divref import defaults
-from divref.alias import HailExpression
 from divref.alias import HailPath
 
 logger = logging.getLogger(__name__)
@@ -15,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def _get_haplotypes(
     ht: hl.Table,
-    windower_f: Callable[[HailExpression], HailExpression],
+    windower_f: Callable[[hl.Expression], hl.Expression],
     idx: int,
     output_base: HailPath,
     pop_ints: dict[str, int],
@@ -41,7 +40,7 @@ def _get_haplotypes(
     new_locus = windower_f(ht.locus)
     ht = ht.annotate(new_locus=new_locus)
 
-    def agg_haplos(arr: HailExpression) -> HailExpression:
+    def agg_haplos(arr: hl.Expression) -> hl.Expression:
         """
         Aggregate haplotypes from an array of population/sample/index structs.
 
@@ -85,8 +84,8 @@ def _get_haplotypes(
     )
 
     def collapse_haplos_across_samples(
-        pop: HailExpression, arr1: HailExpression, arr2: HailExpression
-    ) -> HailExpression:
+        pop: hl.Expression, arr1: hl.Expression, arr2: hl.Expression
+    ) -> hl.Expression:
         """
         Combine haplotypes from the left and right chromosome strands for one population.
 
@@ -106,7 +105,7 @@ def _get_haplotypes(
         # Assumes all AN == 2 * N_samples.
         flat = hl.array([arr1, arr2]).flatmap(lambda x: x.get(pop))
 
-        def map_haplo_group(t: HailExpression) -> HailExpression:
+        def map_haplo_group(t: hl.Expression) -> hl.Expression:
             """
             Summarize one haplotype group into a frequency struct.
 
@@ -141,7 +140,7 @@ def _get_haplotypes(
         )
     )
 
-    def get_haplotype_summary(a: HailExpression) -> dict[str, HailExpression]:
+    def get_haplotype_summary(a: hl.Expression) -> dict[str, hl.Expression]:
         """
         Extract the top-population frequency fields from a collapsed haplotype array.
 
@@ -175,7 +174,7 @@ def _get_haplotypes(
     hte = ht_grouped.explode("all_haplos")
     hte = hte.key_by().drop("new_locus")
 
-    def get_variant(row_idx: HailExpression) -> HailExpression:
+    def get_variant(row_idx: hl.Expression) -> hl.Expression:
         """
         Look up the locus and alleles for a variant by its row index.
 
@@ -188,7 +187,7 @@ def _get_haplotypes(
         """
         return hte.row_map[row_idx].select("locus", "alleles")
 
-    def get_gnomad_freq(row_idx: HailExpression) -> HailExpression:
+    def get_gnomad_freq(row_idx: hl.Expression) -> hl.Expression:
         """
         Look up the gnomAD frequency array for a variant by its row index.
 

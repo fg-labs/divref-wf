@@ -6,7 +6,6 @@ from typing import TypeVar
 import hail as hl
 
 from divref import defaults
-from divref.alias import HailExpression
 
 _V = TypeVar("_V", bound=Hashable)
 """Type variable for hashable dictionary values used in to_hashable_items."""
@@ -27,9 +26,9 @@ def to_hashable_items(d: dict[str, _V]) -> tuple[tuple[str, _V], ...]:
 
 def get_haplo_sequence(
     context_size: int,
-    variants: HailExpression,
+    variants: hl.Expression,
     reference_genome: str = defaults.REFERENCE_GENOME,
-) -> HailExpression:
+) -> hl.Expression:
     """
     Construct a haplotype sequence string with flanking genomic context.
 
@@ -70,7 +69,7 @@ def get_haplo_sequence(
     # (min_pos - index_translation) equals context_size, mapping locus positions to string indices
     index_translation = min_pos - context_size
 
-    def get_chunk_until_next_variant(i: HailExpression) -> HailExpression:
+    def get_chunk_until_next_variant(i: hl.Expression) -> hl.Expression:
         """
         Return the alternate allele plus intervening reference bases up to the next variant.
 
@@ -97,7 +96,7 @@ def get_haplo_sequence(
     )
 
 
-def variant_distance(v1: HailExpression, v2: HailExpression) -> HailExpression:
+def variant_distance(v1: hl.Expression, v2: hl.Expression) -> hl.Expression:
     """
     Calculate the number of reference bases between two variants.
 
@@ -134,7 +133,7 @@ def split_haplotypes(ht: hl.Table, window_size: int) -> hl.Table:
         lambda i: variant_distance(ht.variants[i - 1], ht.variants[i]) >= window_size
     )
 
-    def get_range(i: HailExpression) -> HailExpression:
+    def get_range(i: hl.Expression) -> hl.Expression:
         """
         Return the range of variant indices for the i-th haplotype segment.
 
