@@ -15,6 +15,7 @@ from fgpyo.io import assert_path_is_writable
 
 from divref.haplotype import get_haplo_sequence
 from divref.haplotype import split_haplotypes
+from divref import defaults
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ def build_haplotype_table(
     frequency_cutoff: float,
     merge: bool,
     version_str: str,
+    reference_genome: str,
     tmp_dir: Path,
 ) -> tuple[hl.Table, list[str]]:
     """
@@ -39,11 +41,12 @@ def build_haplotype_table(
     Args:
         haplotypes_table_path: Path to the computed haplotypes Hail table.
         gnomad_va_file: Path to the gnomAD variant annotations Hail table.
-        reference_fasta: Path to the GRCh38 reference FASTA.
+        reference_fasta: Path to the reference FASTA.
         window_size: Context size for sequence construction and haplotype splitting.
         frequency_cutoff: Minimum estimated gnomAD AF for inclusion.
         merge: If True, include gnomAD single-variant sites above frequency_cutoff.
         version_str: Version identifier for sequence IDs.
+        reference_genome: Reference genome to use.
         tmp_dir: Directory for Hail checkpoint files.
 
     Returns:
@@ -53,7 +56,7 @@ def build_haplotype_table(
     va = hl.read_table(str(gnomad_va_file))
     pops_legend: list[str] = va.pops.collect()[0]
 
-    hl.get_reference("GRCh38").add_sequence(reference_fasta)
+    hl.get_reference(reference_genome).add_sequence(reference_fasta)
 
     logger.info(
         "Haplotype table contains %d unique haplotypes above frequency threshold", ht.count()
@@ -252,6 +255,7 @@ def create_fasta_and_index(
     merge: bool = False,
     frequency_cutoff: float = 0.005,
     split_contigs: bool = False,
+    reference_genome: str = defaults.REFERENCE_GENOME,
     tmp_dir: Path = Path("/tmp"),
 ) -> None:
     """
@@ -267,7 +271,7 @@ def create_fasta_and_index(
             (from compute_haplotypes).
         gnomad_va_file: Path to the gnomAD variant annotations Hail table
             (from extract_gnomad_afs).
-        reference_fasta: Path to the GRCh38 reference FASTA for sequence extraction.
+        reference_fasta: Path to the reference FASTA for sequence extraction.
         window_size: Window size used when generating haplotypes; used as the context
             size when constructing sequence strings and stored in the index.
         output_base: Base path for output files. Writes {output_base}.haplotypes.tsv.bgz,
@@ -277,6 +281,7 @@ def create_fasta_and_index(
         merge: If True, include gnomAD single-variant sites above frequency_cutoff.
         frequency_cutoff: Minimum estimated gnomAD allele frequency for haplotype inclusion.
         split_contigs: If True, write one FASTA file per chromosome.
+        reference_genome: Reference genome to use. Defaults to "GRCh38".
         tmp_dir: Temporary directory for Hail checkpoint files.
     """
     assert_directory_exists(haplotypes_table_path)

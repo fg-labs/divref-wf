@@ -17,6 +17,7 @@ def compute_variation_ratios(
     gnomad_sa_file: Path,
     output_ht: Path,
     frequency_thresholds: list[float] = defaults.VARIATION_RATIO_FREQUENCY_THRESHOLDS,
+    reference_genome: str = defaults.REFERENCE_GENOME,
 ) -> None:
     """
     Compute per-sample counts of non-reference variant sites across frequency thresholds.
@@ -26,13 +27,14 @@ def compute_variation_ratios(
     sample-level Hail table with population labels and per-threshold site counts.
 
     Args:
-        vcfs_path: Path or glob pattern to input VCF files (GRCh38).
+        vcfs_path: Path or glob pattern to input VCF files.
         gnomad_va_file: Path to the gnomAD variant annotations Hail table
             (from extract_gnomad_afs).
         gnomad_sa_file: Path to the gnomAD sample metadata Hail table
             (from extract_gnomad_afs).
         output_ht: Output path for the sample-level Hail table.
         frequency_thresholds: Frequency thresholds to calculate.
+        reference_genome: Reference genome to use. Defaults to "GRCh38".
     """
     assert_path_is_readable(vcfs_path)
     assert_directory_exists(gnomad_va_file)
@@ -51,7 +53,7 @@ def compute_variation_ratios(
     gnomad_sa = hl.read_table(str(gnomad_sa_file))
     gnomad_va = hl.read_table(str(gnomad_va_file))
 
-    mt = hl.import_vcf(str(vcfs_path), reference_genome="GRCh38", min_partitions=64)
+    mt = hl.import_vcf(str(vcfs_path), reference_genome=reference_genome, min_partitions=64)
     mt = mt.select_rows().select_cols()
     mt = mt.annotate_rows(freq=gnomad_va[mt.row_key].pop_freqs)
     mt = mt.filter_rows(hl.is_defined(mt.freq))

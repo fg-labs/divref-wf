@@ -237,7 +237,7 @@ def compute_haplotypes(
     and writes the union of both windowed results as a keyed Hail table.
 
     Args:
-        vcfs_path: Path or glob pattern to input VCF files (GRCh38).
+        vcfs_path: Path or glob pattern to input VCF files.
         gnomad_va_file: Path to the gnomAD variant annotations Hail table
             (from extract_gnomad_afs).
         gnomad_sa_file: Path to the gnomAD sample metadata Hail table
