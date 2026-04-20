@@ -4,6 +4,8 @@ from pathlib import Path
 import hail as hl
 import pyspark
 
+from divref import defaults
+
 
 def hail_init(gcs_credentials_path: Path) -> None:
     """
@@ -34,5 +36,6 @@ def hail_init(gcs_credentials_path: Path) -> None:
             "spark.driver.extraClassPath": gcs_jar,
             "spark.hadoop.fs.gs.impl": "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
             "spark.hadoop.fs.AbstractFileSystem.gs.impl": "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS",  # noqa: E501
-        }
+        },
+        default_reference=defaults.REFERENCE_GENOME,
     )
