@@ -42,7 +42,7 @@ def compute_variation_ratios(
     gnomad_sa = hl.read_table(gnomad_sa_file)
     gnomad_va = hl.read_table(gnomad_va_file)
 
-    mt = hl.import_vcf(vcfs_path, reference_genome="GRCh38", min_partitions=64)
+    mt = hl.import_vcf(vcfs_path, reference_genome="GRCh38", min_partitions=64, force_bgz=True)
     mt = mt.select_rows().select_cols()
     mt = mt.annotate_rows(freq=gnomad_va[mt.row_key].pop_freqs)
     mt = mt.filter_rows(hl.is_defined(mt.freq))
