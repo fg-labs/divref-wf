@@ -56,7 +56,7 @@ def build_haplotype_table(
     va = hl.read_table(str(gnomad_va_file))
     pops_legend: list[str] = va.pops.collect()[0]
 
-    hl.get_reference(reference_genome).add_sequence(reference_fasta)
+    hl.get_reference(reference_genome).add_sequence(str(reference_fasta))
 
     logger.info(
         "Haplotype table contains %d unique haplotypes above frequency threshold", ht.count()
@@ -291,7 +291,7 @@ def create_fasta_and_index(
     assert_path_is_writable(tmp_dir)
     assert_path_is_writable(output_base)
 
-    hl.init(tmp_dir=tmp_dir)
+    hl.init(tmp_dir=str(tmp_dir))
 
     ht, pops_legend = build_haplotype_table(
         haplotypes_table_path=haplotypes_table_path,

@@ -27,7 +27,7 @@ def compute_variation_ratios(
     sample-level Hail table with population labels and per-threshold site counts.
 
     Args:
-        vcfs_path: Path or glob pattern to input VCF files.
+        vcfs_path: Path to input VCF files.
         gnomad_va_file: Path to the gnomAD variant annotations Hail table
             (from extract_gnomad_afs).
         gnomad_sa_file: Path to the gnomAD sample metadata Hail table
