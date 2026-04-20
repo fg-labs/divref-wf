@@ -29,7 +29,12 @@ _tools: List[Callable[..., None]] = [
 
 
 def setup_logging(level: str = "INFO") -> None:
-    """Set up basic logging to print to the console."""
+    """
+    Set up basic logging to print to the console.
+
+    Args:
+        level: Logging level string (e.g. "INFO", "DEBUG", "WARNING").
+    """
     logging.basicConfig(
         level=level,
         format="%(asctime)s %(name)s:%(funcName)s:%(lineno)s [%(levelname)s]: %(message)s",

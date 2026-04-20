@@ -3,12 +3,17 @@
 import json
 import logging
 import os
+from pathlib import Path
 
 import duckdb
 import hail as hl
 import polars
+from fgpyo.io import assert_directory_exists
+from fgpyo.io import assert_fasta_indexed
+from fgpyo.io import assert_path_is_readable
+from fgpyo.io import assert_path_is_writable
 
-from divref.alias import HailPath
+from divref import defaults
 from divref.haplotype import get_haplo_sequence
 from divref.haplotype import split_haplotypes
 
@@ -16,14 +21,15 @@ logger = logging.getLogger(__name__)
 
 
 def build_haplotype_table(
-    haplotypes_table_path: HailPath,
-    gnomad_va_file: HailPath,
-    reference_fasta: HailPath,
+    haplotypes_table_path: Path,
+    gnomad_va_file: Path,
+    reference_fasta: Path,
     window_size: int,
     frequency_cutoff: float,
     merge: bool,
     version_str: str,
-    tmp_dir: HailPath,
+    reference_genome: str,
+    tmp_dir: Path,
 ) -> tuple[hl.Table, list[str]]:
     """
     Build the annotated haplotype table with sequences and variant strings.
@@ -35,21 +41,22 @@ def build_haplotype_table(
     Args:
         haplotypes_table_path: Path to the computed haplotypes Hail table.
         gnomad_va_file: Path to the gnomAD variant annotations Hail table.
-        reference_fasta: Path to the GRCh38 reference FASTA.
+        reference_fasta: Path to the reference FASTA.
         window_size: Context size for sequence construction and haplotype splitting.
         frequency_cutoff: Minimum estimated gnomAD AF for inclusion.
         merge: If True, include gnomAD single-variant sites above frequency_cutoff.
         version_str: Version identifier for sequence IDs.
+        reference_genome: Reference genome to use.
         tmp_dir: Directory for Hail checkpoint files.
 
     Returns:
         Tuple of (checkpointed Hail table, population legend list).
     """
-    ht = hl.read_table(haplotypes_table_path).key_by()
-    va = hl.read_table(gnomad_va_file)
+    ht = hl.read_table(str(haplotypes_table_path)).key_by()
+    va = hl.read_table(str(gnomad_va_file))
     pops_legend: list[str] = va.pops.collect()[0]
 
-    hl.get_reference("GRCh38").add_sequence(reference_fasta)
+    hl.get_reference(reference_genome).add_sequence(str(reference_fasta))
 
     logger.info(
         "Haplotype table contains %d unique haplotypes above frequency threshold", ht.count()
@@ -132,7 +139,7 @@ def build_haplotype_table(
 
 def export_ht_to_dataframe(
     ht: hl.Table,
-    output_base: HailPath,
+    output_base: Path,
     file_suffix: str,
     pops_legend: list[str],
 ) -> polars.DataFrame:
@@ -148,6 +155,7 @@ def export_ht_to_dataframe(
     Returns:
         Polars DataFrame read back from the exported TSV.
     """
+    out_file_path: str = f"{str(output_base)}{file_suffix}.tsv.bgz"
     ht.select(
         "sequence",
         "sequence_length",
@@ -166,10 +174,10 @@ def export_ht_to_dataframe(
             )
             for i, pop in enumerate(pops_legend)
         },
-    ).export(output_base + f"{file_suffix}.tsv.bgz")
+    ).export(out_file_path)
 
     return polars.read_csv(
-        output_base + f"{file_suffix}.tsv.bgz",
+        out_file_path,
         separator="\t",
         schema_overrides={"sequence_id": polars.String},
     )
@@ -177,7 +185,7 @@ def export_ht_to_dataframe(
 
 def write_fasta_files(
     df: polars.DataFrame,
-    output_base: HailPath,
+    output_base: Path,
     file_suffix: str,
     split_contigs: bool,
 ) -> None:
@@ -195,19 +203,19 @@ def write_fasta_files(
         for chrom in df["contig"].unique().to_list():
             logger.info("Creating FASTA for chromosome %s", chrom)
             df2 = df.filter(df["contig"] == chrom)
-            with open(output_base + f"{file_suffix}.{chrom}.fasta", "w") as fasta_out:
+            with open(f"{str(output_base)}{file_suffix}.{chrom}.fasta", "w") as fasta_out:
                 for sequence, sequence_id in df2.select("sequence", "sequence_id").iter_rows():
                     fasta_out.write(f">{sequence_id}\n{sequence}\n")
     else:
         logger.info("Creating FASTA")
-        with open(output_base + f"{file_suffix}.fasta", "w") as fasta_out:
+        with open(f"{str(output_base)}{file_suffix}.fasta", "w") as fasta_out:
             for sequence, sequence_id in df.select("sequence", "sequence_id").iter_rows():
                 fasta_out.write(f">{sequence_id}\n{sequence}\n")
 
 
 def create_duckdb_index(
     df: polars.DataFrame,  # noqa: ARG001 — accessed by DuckDB via SQL `FROM df`
-    output_base: HailPath,
+    output_base: Path,
     file_suffix: str,
     window_size: int,
     pops_legend: list[str],
@@ -224,7 +232,7 @@ def create_duckdb_index(
         pops_legend: Population legend list to store in the index.
         version_str: Version string to store in the index.
     """
-    duckdb_file = output_base + f"{file_suffix}.index.duckdb"
+    duckdb_file = f"{str(output_base)}{file_suffix}.index.duckdb"
     if os.path.exists(duckdb_file):
         os.remove(duckdb_file)
     con = duckdb.connect(duckdb_file)
@@ -238,16 +246,17 @@ def create_duckdb_index(
 
 def create_fasta_and_index(
     *,
-    haplotypes_table_path: HailPath,
-    gnomad_va_file: HailPath,
-    reference_fasta: HailPath,
+    haplotypes_table_path: Path,
+    gnomad_va_file: Path,
+    reference_fasta: Path,
     window_size: int,
-    output_base: HailPath,
+    output_base: Path,
     version_str: str,
     merge: bool = False,
     frequency_cutoff: float = 0.005,
     split_contigs: bool = False,
-    tmp_dir: HailPath = "/tmp",
+    reference_genome: str = defaults.REFERENCE_GENOME,
+    tmp_dir: Path = Path("/tmp"),
 ) -> None:
     """
     Convert a haplotype Hail table into FASTA sequences and a searchable DuckDB index.
@@ -262,7 +271,7 @@ def create_fasta_and_index(
             (from compute_haplotypes).
         gnomad_va_file: Path to the gnomAD variant annotations Hail table
             (from extract_gnomad_afs).
-        reference_fasta: Path to the GRCh38 reference FASTA for sequence extraction.
+        reference_fasta: Path to the reference FASTA for sequence extraction.
         window_size: Window size used when generating haplotypes; used as the context
             size when constructing sequence strings and stored in the index.
         output_base: Base path for output files. Writes {output_base}.haplotypes.tsv.bgz,
@@ -272,9 +281,17 @@ def create_fasta_and_index(
         merge: If True, include gnomAD single-variant sites above frequency_cutoff.
         frequency_cutoff: Minimum estimated gnomAD allele frequency for haplotype inclusion.
         split_contigs: If True, write one FASTA file per chromosome.
+        reference_genome: Reference genome to use. Defaults to "GRCh38".
         tmp_dir: Temporary directory for Hail checkpoint files.
     """
-    hl.init(tmp_dir=tmp_dir)
+    assert_directory_exists(haplotypes_table_path)
+    assert_directory_exists(gnomad_va_file)
+    assert_path_is_readable(reference_fasta)
+    assert_fasta_indexed(reference_fasta)
+    assert_path_is_writable(tmp_dir)
+    assert_path_is_writable(output_base)
+
+    hl.init(tmp_dir=str(tmp_dir))
 
     ht, pops_legend = build_haplotype_table(
         haplotypes_table_path=haplotypes_table_path,
@@ -284,6 +301,7 @@ def create_fasta_and_index(
         frequency_cutoff=frequency_cutoff,
         merge=merge,
         version_str=version_str,
+        reference_genome=reference_genome,
         tmp_dir=tmp_dir,
     )
 

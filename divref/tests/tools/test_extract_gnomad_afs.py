@@ -16,7 +16,7 @@ def test_extract_gnomad_afs(
 ) -> None:
     """Happy-path: extract AFs from local test variant and sample data."""
     in_sites = str(datadir / "chr1_100001_200000.ht")
-    out_va = str(tmp_path / "va.ht")
+    out_va = tmp_path / "va.ht"
 
     with patch("divref.tools.extract_gnomad_afs.hail_init"):
         extract_gnomad_afs(
@@ -28,7 +28,7 @@ def test_extract_gnomad_afs(
             reference_genome=defaults.REFERENCE_GENOME,
         )
 
-    va = hl.read_table(out_va)
+    va = hl.read_table(str(out_va))
     va_count = va.count()
     assert va_count == 966
 

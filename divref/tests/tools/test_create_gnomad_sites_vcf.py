@@ -16,10 +16,10 @@ def test_create_gnomad_sites_vcf(
 ) -> None:
     """Happy-path: filter extracted AFs and export as VCF."""
     # --- act: run create_gnomad_sites_vcf ---
-    in_sites = str(datadir / "chr1_100001_200000.gnomad_afs.ht")
-    output_vcf = str(tmp_path / "output.vcf.bgz")
+    in_sites = datadir / "chr1_100001_200000.gnomad_afs.ht"
+    output_vcf = tmp_path / "output.vcf.bgz"
 
-    with patch("divref.tools.create_gnomad_sites_vcf.hail_init"):
+    with patch("divref.tools.create_gnomad_sites_vcf.hl.init"):
         create_gnomad_sites_vcf(
             sites_table_path=in_sites,
             output_vcf_path=output_vcf,
@@ -27,7 +27,7 @@ def test_create_gnomad_sites_vcf(
         )
 
     # --- assert: VCF file is valid ---
-    vcf = hl.import_vcf(output_vcf, reference_genome=defaults.REFERENCE_GENOME)
+    vcf = hl.import_vcf(str(output_vcf), reference_genome=defaults.REFERENCE_GENOME)
     vcf_count = vcf.count_rows()
     assert vcf_count == 333
 
@@ -39,5 +39,5 @@ def test_create_gnomad_sites_vcf(
         )
 
     # VCF should have equal or fewer variants than the unfiltered extracted table
-    va = hl.read_table(in_sites)
+    va = hl.read_table(str(in_sites))
     assert vcf_count <= va.count()

@@ -15,10 +15,10 @@ def test_compute_haplotypes(
 ) -> None:
     """Happy-path: compute haplotypes from test VCF with gnomAD annotations."""
     # --- act ---
-    in_sites = str(datadir / "chr1_100001_200000.gnomad_afs.ht")
-    in_samples = str(datadir / "hgdp_1kg_sample_metadata.extract.ht")
-    vcf_path = str(datadir / "chr1_100001_200000.vcf.gz")
-    output_base = str(tmp_path / "haplos")
+    in_sites = datadir / "chr1_100001_200000.gnomad_afs.ht"
+    in_samples = datadir / "hgdp_1kg_sample_metadata.extract.ht"
+    vcf_path = datadir / "chr1_100001_200000.vcf.gz"
+    output_base = tmp_path / "haplos"
 
     with patch("divref.tools.compute_haplotypes.hl.init"):
         compute_haplotypes(
@@ -28,7 +28,7 @@ def test_compute_haplotypes(
             window_size=5000,
             freq_threshold=0.005,
             output_base=output_base,
-            temp_dir=str(tmp_path / "hail_tmp"),
+            temp_dir=tmp_path / "hail_tmp",
         )
 
     # --- assert ---

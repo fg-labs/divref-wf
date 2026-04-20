@@ -1,24 +1,26 @@
 """Tool to compute haplotypes from VCF files with gnomAD population frequency annotations."""
 
 import logging
-from typing import Any
+from pathlib import Path
 from typing import Callable
 
 import hail as hl
+from fgpyo.io import assert_directory_exists
+from fgpyo.io import assert_path_is_readable
+from fgpyo.io import assert_path_is_writable
 
 from divref import defaults
-from divref.alias import HailPath
 
 logger = logging.getLogger(__name__)
 
 
 def _get_haplotypes(
-    ht: Any,
-    windower_f: Callable[[Any], Any],
+    ht: hl.Table,
+    windower_f: Callable[[hl.Expression], hl.Expression],
     idx: int,
-    output_base: HailPath,
+    output_base: Path,
     pop_ints: dict[str, int],
-) -> Any:
+) -> hl.Table:
     """
     Group variants into haplotypes within genomic windows and compute empirical frequencies.
 
@@ -40,7 +42,22 @@ def _get_haplotypes(
     new_locus = windower_f(ht.locus)
     ht = ht.annotate(new_locus=new_locus)
 
-    def agg_haplos(arr: Any) -> Any:
+    def agg_haplos(arr: hl.Expression) -> hl.Expression:
+        """
+        Aggregate haplotypes from an array of population/sample/index structs.
+
+        Groups alleles carried by the same sample within a window, collects haplotypes
+        that have more than one observed variant, and counts occurrences per unique
+        variant-index sequence (the "haplotype").
+
+        Args:
+            arr: Hail array expression of structs with pop, sample, and row_idx fields,
+                representing alleles carried by samples on one haploid chromosome.
+
+        Returns:
+            Hail dict expression mapping population integer to an array of
+            (haplotype, count) pairs, where haplotype is an array of row indices.
+        """
         flat = hl.agg.explode(lambda elt: hl.agg.collect(elt.annotate(row_idx=ht.row_idx)), arr)
         pop_grouped = hl.group_by(lambda x: x.pop, flat)
         return pop_grouped.map_values(
@@ -68,11 +85,39 @@ def _get_haplotypes(
         right_haplos=agg_haplos(ht.pops_and_ids_right),
     )
 
-    def collapse_haplos_across_samples(pop: Any, arr1: Any, arr2: Any) -> Any:
+    def collapse_haplos_across_samples(
+        pop: hl.Expression, arr1: hl.Expression, arr2: hl.Expression
+    ) -> hl.Expression:
+        """
+        Combine haplotypes from the left and right chromosome strands for one population.
+
+        Merges the two strand dictionaries for the given population, groups identical
+        haplotypes (sequences of row indices), and computes empirical allele counts and
+        frequencies using the minimum allele number across component variants.
+
+        Args:
+            pop: Hail integer expression identifying the population.
+            arr1: Left-strand haplotype dict from agg_haplos.
+            arr2: Right-strand haplotype dict from agg_haplos.
+
+        Returns:
+            Hail array expression of structs with haplotype, pop, empirical_AC,
+            min_variant_frequency, and empirical_AF fields.
+        """
         # Assumes all AN == 2 * N_samples.
         flat = hl.array([arr1, arr2]).flatmap(lambda x: x.get(pop))
 
-        def map_haplo_group(t: Any) -> Any:
+        def map_haplo_group(t: hl.Expression) -> hl.Expression:
+            """
+            Summarize one haplotype group into a frequency struct.
+
+            Args:
+                t: Tuple of (haplotype_row_indices, list_of_count_pairs).
+
+            Returns:
+                Hail struct with haplotype, pop, empirical_AC, min_variant_frequency,
+                and empirical_AF.
+            """
             haplotype = t[0]
             n_observed = hl.sum(t[1].map(lambda x: x[1]))
             component_variant_frequencies = haplotype.map(
@@ -97,7 +142,22 @@ def _get_haplotypes(
         )
     )
 
-    def get_haplotype_summary(a: Any) -> dict[str, Any]:
+    def get_haplotype_summary(a: hl.Expression) -> dict[str, hl.Expression]:
+        """
+        Extract the top-population frequency fields from a collapsed haplotype array.
+
+        Sorts the array of per-population frequency structs by empirical AF descending
+        and returns the fields of the maximum-frequency entry along with the full
+        population frequency array.
+
+        Args:
+            a: Hail array expression of per-population frequency structs (from
+                collapse_haplos_across_samples), one entry per population.
+
+        Returns:
+            Dict mapping field names to Hail expressions for max_pop, max_empirical_AF,
+            max_empirical_AC, min_variant_frequency, and all_pop_freqs.
+        """
         a_sorted = hl.sorted(a, key=lambda x: x.empirical_AF, reverse=True)
         return dict(
             max_pop=a_sorted[0].pop,
@@ -116,10 +176,30 @@ def _get_haplotypes(
     hte = ht_grouped.explode("all_haplos")
     hte = hte.key_by().drop("new_locus")
 
-    def get_variant(row_idx: Any) -> Any:
+    def get_variant(row_idx: hl.Expression) -> hl.Expression:
+        """
+        Look up the locus and alleles for a variant by its row index.
+
+        Args:
+            row_idx: Hail integer expression for the variant's row index in the
+                checkpoint table.
+
+        Returns:
+            Hail struct expression with locus and alleles fields.
+        """
         return hte.row_map[row_idx].select("locus", "alleles")
 
-    def get_gnomad_freq(row_idx: Any) -> Any:
+    def get_gnomad_freq(row_idx: hl.Expression) -> hl.Expression:
+        """
+        Look up the gnomAD frequency array for a variant by its row index.
+
+        Args:
+            row_idx: Hail integer expression for the variant's row index in the
+                checkpoint table.
+
+        Returns:
+            Hail array expression of per-population gnomAD frequency structs.
+        """
         return hte.row_map[row_idx].freq
 
     hte = hte.select(
@@ -136,18 +216,18 @@ def _get_haplotypes(
     )
 
     logger.info("Writing %s.%s.ht ...", output_base, idx)
-    return hte.checkpoint(f"{output_base}.{idx}.ht", overwrite=True)
+    return hte.checkpoint(f"{str(output_base)}.{idx}.ht", overwrite=True)
 
 
 def compute_haplotypes(
     *,
-    vcfs_path: HailPath,
-    gnomad_va_file: HailPath,
-    gnomad_sa_file: HailPath,
+    vcfs_path: Path,
+    gnomad_va_file: Path,
+    gnomad_sa_file: Path,
     window_size: int,
     freq_threshold: float,
-    output_base: HailPath,
-    temp_dir: HailPath = "/tmp",
+    output_base: Path,
+    temp_dir: Path = Path("/tmp"),
 ) -> None:
     """
     Compute population haplotypes from VCF files with gnomAD frequency annotations.
@@ -157,7 +237,7 @@ def compute_haplotypes(
     and writes the union of both windowed results as a keyed Hail table.
 
     Args:
-        vcfs_path: Path or glob pattern to input VCF files (GRCh38).
+        vcfs_path: Path or glob pattern to input VCF files.
         gnomad_va_file: Path to the gnomAD variant annotations Hail table
             (from extract_gnomad_afs).
         gnomad_sa_file: Path to the gnomAD sample metadata Hail table
@@ -166,16 +246,26 @@ def compute_haplotypes(
         freq_threshold: Minimum gnomAD population allele frequency to retain a variant.
         output_base: Base output path; writes {output_base}.1.ht, {output_base}.2.ht,
             and the final {output_base}.ht.
-        temp_dir: Directory for Hail temporary files.
+        temp_dir: Local directory for Hail temporary files.
     """
-    hl.init(tmp_dir=temp_dir)
+    assert_path_is_readable(vcfs_path)
+    assert_directory_exists(gnomad_va_file)
+    assert_directory_exists(gnomad_sa_file)
+    assert_path_is_writable(output_base.with_suffix(output_base.suffix + ".1.ht"))
+    assert_path_is_writable(output_base.with_suffix(output_base.suffix + ".2.ht"))
+    assert_path_is_writable(output_base.with_suffix(output_base.suffix + ".ht"))
 
-    gnomad_sa = hl.read_table(gnomad_sa_file)
-    gnomad_va = hl.read_table(gnomad_va_file)
+    hl.init(tmp_dir=str(temp_dir))
+
+    gnomad_sa = hl.read_table(str(gnomad_sa_file))
+    gnomad_va = hl.read_table(str(gnomad_va_file))
     gnomad_va = gnomad_va.filter(hl.max(gnomad_va.pop_freqs.map(lambda x: x.AF)) >= freq_threshold)
 
     mt = hl.import_vcf(
-        vcfs_path, reference_genome=defaults.REFERENCE_GENOME, min_partitions=64, force_bgz=True
+        str(vcfs_path),
+        reference_genome=defaults.REFERENCE_GENOME,
+        min_partitions=64,
+        force_bgz=True,
     )
     mt = mt.select_rows().select_cols()
     mt = mt.annotate_rows(freq=gnomad_va[mt.row_key].pop_freqs)
@@ -222,4 +312,4 @@ def compute_haplotypes(
 
     htu = window1.union(window2)
     logger.info("Writing final %s.ht ...", output_base)
-    htu.key_by("haplotype").naive_coalesce(64).write(f"{output_base}.ht", overwrite=True)
+    htu.key_by("haplotype").naive_coalesce(64).write(f"{str(output_base)}.ht", overwrite=True)

@@ -12,6 +12,8 @@ requires-python = ">=3.12,<3.14"
 dependencies    = [
     "defopt~=6.4",
     "duckdb>=1.0",
+    "fgmetric>=0.2.0",
+    "fgpyo>=1.5.1",
     "hail>=0.2",
     "pandas>=2.0",
     "polars>=1.0",
