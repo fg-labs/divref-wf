@@ -559,6 +559,7 @@ source = { editable = "." }
 dependencies = [
     { name = "defopt" },
     { name = "duckdb" },
+    { name = "fgmetric" },
     { name = "fgpyo" },
     { name = "hail" },
     { name = "pandas" },
@@ -584,6 +585,7 @@ ipython = [
 requires-dist = [
     { name = "defopt", specifier = "~=6.4" },
     { name = "duckdb", specifier = ">=1.0" },
+    { name = "fgmetric", specifier = ">=0.2.0" },
     { name = "fgpyo", specifier = ">=1.5.1" },
     { name = "hail", specifier = ">=0.2" },
     { name = "pandas", specifier = ">=2.0" },
@@ -641,6 +643,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/cc/28/c14e053b6762b1044f34a13aab6859bbf40456d37d23aa286ac24cfd9a5d/executing-2.2.1.tar.gz", hash = "sha256:3632cc370565f6648cc328b32435bd120a1e4ebb20c77e3fdde9a13cd1e533c4", size = 1129488, upload-time = "2025-09-01T09:48:10.866Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c1/ea/53f2148663b321f21b5a606bd5f191517cf40b7072c0497d3c92c4a13b1e/executing-2.2.1-py2.py3-none-any.whl", hash = "sha256:760643d3452b4d777d295bb167ccc74c64a81df23fb5e08eff250c425a4b2017", size = 28317, upload-time = "2025-09-01T09:48:08.5Z" },
+]
+
+[[package]]
+name = "fgmetric"
+version = "0.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/51/b4/edb1f6dfc3321620dfe02125ce20a4708805b9c2eb7d3ea57c2bce641662/fgmetric-0.2.0.tar.gz", hash = "sha256:cf0ad030f0d4d3bf04cbe9d93326c2e544e8a2b3e8467b4810df35ebb666d7f1", size = 56746, upload-time = "2026-03-18T23:52:15.466Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fb/2d/c6a8949aa9d5e6b69f7dcb9e792f8b2ff17d93204cc69cc520deff221b3b/fgmetric-0.2.0-py3-none-any.whl", hash = "sha256:44b903aa9a66f70380df8cb4c69eb63fa1829f9dc60c11327885d9245bf5e825", size = 15474, upload-time = "2026-03-18T23:52:14.077Z" },
 ]
 
 [[package]]

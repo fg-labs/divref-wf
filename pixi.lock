@@ -186,6 +186,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/6e/c6/ac0b6c1e2d138f1002bcf799d330bd6d85084fece321e662a14223794041/Deprecated-1.2.18-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/1e/77/dc8c558f7593132cf8fefec57c4f60c83b16941c574ac5f619abb3ae7933/dill-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/26/78/eb1e064ea8b9df3b87b167bfd7a407b2f615a4291e06cba756727adfa06c/duckdb-1.5.2-cp312-cp312-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/fb/2d/c6a8949aa9d5e6b69f7dcb9e792f8b2ff17d93204cc69cc520deff221b3b/fgmetric-0.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/55/28/b363f21ca15ef86c8ee4c147b2831852c80b218e0616e0aec02f829eee26/fgpyo-1.5.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/6a/bd/d91c5e39f490a49df14320f4e8c80161cfcce09f1e2cde1edd16a551abb3/frozenlist-1.8.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/73/76/d241a5c927433420507215df6cac1b1fa4ac0ba7a794df42a84326c68da8/google_auth-2.49.2-py3-none-any.whl
@@ -380,6 +381,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/6e/c6/ac0b6c1e2d138f1002bcf799d330bd6d85084fece321e662a14223794041/Deprecated-1.2.18-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/1e/77/dc8c558f7593132cf8fefec57c4f60c83b16941c574ac5f619abb3ae7933/dill-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2d/8a/3e25b5d03bcf1fb99d189912f8ce92b1db4f9c8778e1b1f55745973a855a/duckdb-1.5.2-cp312-cp312-macosx_10_13_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/fb/2d/c6a8949aa9d5e6b69f7dcb9e792f8b2ff17d93204cc69cc520deff221b3b/fgmetric-0.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/55/28/b363f21ca15ef86c8ee4c147b2831852c80b218e0616e0aec02f829eee26/fgpyo-1.5.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/64/80/4f6e318ee2a7c0750ed724fa33a4bdf1eacdc5a39a7a24e818a773cd91af/frozenlist-1.8.0-cp312-cp312-macosx_10_13_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/73/76/d241a5c927433420507215df6cac1b1fa4ac0ba7a794df42a84326c68da8/google_auth-2.49.2-py3-none-any.whl
@@ -573,6 +575,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/6e/c6/ac0b6c1e2d138f1002bcf799d330bd6d85084fece321e662a14223794041/Deprecated-1.2.18-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/1e/77/dc8c558f7593132cf8fefec57c4f60c83b16941c574ac5f619abb3ae7933/dill-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/19/bb/58001f0815002b1a93431bf907f77854085c7d049b83d521814a07b9db0b/duckdb-1.5.2-cp312-cp312-macosx_11_0_arm64.whl
+      - pypi: https://files.pythonhosted.org/packages/fb/2d/c6a8949aa9d5e6b69f7dcb9e792f8b2ff17d93204cc69cc520deff221b3b/fgmetric-0.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/55/28/b363f21ca15ef86c8ee4c147b2831852c80b218e0616e0aec02f829eee26/fgpyo-1.5.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2b/94/5c8a2b50a496b11dd519f4a24cb5496cf125681dd99e94c604ccdea9419a/frozenlist-1.8.0-cp312-cp312-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/73/76/d241a5c927433420507215df6cac1b1fa4ac0ba7a794df42a84326c68da8/google_auth-2.49.2-py3-none-any.whl
@@ -1777,10 +1780,11 @@ packages:
 - pypi: ./divref
   name: divref
   version: 0.1.0
-  sha256: 68c3e18c23433da70cd9f22fe5a0b64fc17bf22a35da6812ace25f15008591ce
+  sha256: 5605ad3b0c9dc74efec75e166109802918ed5f8eba1a269dedb3a57681009fcc
   requires_dist:
   - defopt~=6.4
   - duckdb>=1.0
+  - fgmetric>=0.2.0
   - fgpyo>=1.5.1
   - hail>=0.2
   - pandas>=2.0
@@ -1845,6 +1849,15 @@ packages:
   - pyarrow ; extra == 'all'
   - adbc-driver-manager ; extra == 'all'
   requires_python: '>=3.10.0'
+- pypi: https://files.pythonhosted.org/packages/fb/2d/c6a8949aa9d5e6b69f7dcb9e792f8b2ff17d93204cc69cc520deff221b3b/fgmetric-0.2.0-py3-none-any.whl
+  name: fgmetric
+  version: 0.2.0
+  sha256: 44b903aa9a66f70380df8cb4c69eb63fa1829f9dc60c11327885d9245bf5e825
+  requires_dist:
+  - pydantic>=2.11.4
+  - fgpyo~=1.2.0 ; extra == 'benchmark'
+  - pytest-benchmark~=5.1.0 ; extra == 'benchmark'
+  requires_python: '>=3.12'
 - pypi: https://files.pythonhosted.org/packages/55/28/b363f21ca15ef86c8ee4c147b2831852c80b218e0616e0aec02f829eee26/fgpyo-1.5.1-py3-none-any.whl
   name: fgpyo
   version: 1.5.1
