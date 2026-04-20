@@ -263,19 +263,22 @@ def remap_divref(
     """
     conn = _get_index_connection(index_path)
 
-    df = pd.read_csv(input_path, sep=separator)
-    chrom_field = "chromosome"
-    start_field = "coordinate_start"
-    end_field = "coordinate_end"
+    df: pd.DataFrame = pd.read_csv(input_path, sep=separator)
+    chrom_field: str = "chromosome"
+    start_field: str = "coordinate_start"
+    end_field: str = "coordinate_end"
+    strand_field: str = "strand"
+    padded_target_field: str = "padded_target"
+    unpadded_target_field: str = "unpadded_target_sequence"
 
-    required_fields = (
+    required_fields: list[str] = [
         chrom_field,
         start_field,
         end_field,
-        "strand",
-        "padded_target",
-        "unpadded_target_sequence",
-    )
+        strand_field,
+        padded_target_field,
+        unpadded_target_field,
+    ]
     if not all(x in df.columns for x in required_fields):
         raise ValueError(f"Required fields not found in input file: {', '.join(required_fields)}")
 
@@ -329,10 +332,9 @@ def remap_divref(
             start: int = df_row[start_field]
             end: int = df_row[end_field]
             hap_id: str = df_row[chrom_field]
-
-            strand: str = df_row["strand"]
-            padded_target: str = df_row["padded_target"]
-            target: str = df_row["unpadded_target_sequence"]
+            strand: str = df_row[strand_field]
+            padded_target: str = df_row[padded_target_field]
+            target: str = df_row[unpadded_target_field]
 
             padded_len_adj = len(padded_target.replace("-", "")) - len(target)
             if strand == "+":
