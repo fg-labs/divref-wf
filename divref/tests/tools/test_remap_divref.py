@@ -1,9 +1,13 @@
-"""Tests for Haplotype.reference_mapping coordinate translation in remap_divref."""
+"""Tests for remap_divref models and helper functions."""
 
 from typing import Any
 
+import pytest
+
 from divref.tools.remap_divref import Haplotype
 from divref.tools.remap_divref import ReferenceMapping
+from divref.tools.remap_divref import Variant
+from divref.tools.remap_divref import _parse_pop_freqs
 
 
 def create_haplotype(
@@ -156,3 +160,150 @@ def test_large_insertion_with_null_frequencies() -> None:
         "nfe": [0.0],
         "sas": [0.0],
     }
+
+
+# ---------------------------------------------------------------------------
+# Variant.render
+# ---------------------------------------------------------------------------
+
+
+def test_variant_render_snp() -> None:
+    assert Variant(chromosome="chr1", position=100, reference="A", alternate="T").render() == (
+        "chr1:100:A:T"
+    )
+
+
+def test_variant_render_insertion() -> None:
+    assert Variant(chromosome="chr2", position=200, reference="A", alternate="ATG").render() == (
+        "chr2:200:A:ATG"
+    )
+
+
+def test_variant_render_deletion() -> None:
+    assert Variant(chromosome="chrX", position=300, reference="ATG", alternate="A").render() == (
+        "chrX:300:ATG:A"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Haplotype.parsed_variants and .contig
+# ---------------------------------------------------------------------------
+
+
+def test_parsed_variants_single() -> None:
+    hap = create_haplotype(variants="chr1:100:A:T", n_variants=1)
+    vs = hap.parsed_variants()
+    assert len(vs) == 1
+    assert vs[0].chromosome == "chr1"
+    assert vs[0].position == 100
+    assert vs[0].reference == "A"
+    assert vs[0].alternate == "T"
+
+
+def test_parsed_variants_multiple() -> None:
+    hap = create_haplotype(variants="chr1:100:A:T,chr1:200:CC:G", n_variants=2)
+    vs = hap.parsed_variants()
+    assert len(vs) == 2
+    assert vs[1].position == 200
+    assert vs[1].reference == "CC"
+
+
+def test_parsed_variants_cached() -> None:
+    # Second call returns the exact same list object (no re-parsing)
+    hap = create_haplotype(variants="chr1:100:A:T,chr1:200:C:G", n_variants=2)
+    assert hap.parsed_variants() is hap.parsed_variants()
+
+
+def test_contig_returns_first_variant_chromosome() -> None:
+    hap = create_haplotype(variants="chr5:100:A:T,chr5:200:C:G", n_variants=2)
+    assert hap.contig() == "chr5"
+
+
+# ---------------------------------------------------------------------------
+# ReferenceMapping.variants_involved_str
+# ---------------------------------------------------------------------------
+
+
+def test_variants_involved_str_empty() -> None:
+    rm = ReferenceMapping(
+        chromosome="chr1",
+        start=100,
+        end=200,
+        variants_involved=[],
+        first_variant_index=None,
+        last_variant_index=None,
+        population_frequencies={},
+    )
+    assert rm.variants_involved_str() == ""
+
+
+def test_variants_involved_str_single() -> None:
+    rm = ReferenceMapping(
+        chromosome="chr1",
+        start=100,
+        end=200,
+        variants_involved=[Variant(chromosome="chr1", position=150, reference="A", alternate="T")],
+        first_variant_index=0,
+        last_variant_index=0,
+        population_frequencies={},
+    )
+    assert rm.variants_involved_str() == "chr1:150:A:T"
+
+
+def test_variants_involved_str_multiple() -> None:
+    rm = ReferenceMapping(
+        chromosome="chr1",
+        start=100,
+        end=300,
+        variants_involved=[
+            Variant(chromosome="chr1", position=150, reference="A", alternate="T"),
+            Variant(chromosome="chr1", position=200, reference="CC", alternate="C"),
+        ],
+        first_variant_index=0,
+        last_variant_index=1,
+        population_frequencies={},
+    )
+    assert rm.variants_involved_str() == "chr1:150:A:T,chr1:200:CC:C"
+
+
+# ---------------------------------------------------------------------------
+# _parse_pop_freqs
+# ---------------------------------------------------------------------------
+
+
+def test_parse_pop_freqs_all_floats() -> None:
+    assert _parse_pop_freqs("0.1,0.2,0.3") == [0.1, 0.2, 0.3]
+
+
+def test_parse_pop_freqs_nulls_become_zero() -> None:
+    assert _parse_pop_freqs("0.1,null,0.3") == [0.1, 0.0, 0.3]
+
+
+def test_parse_pop_freqs_single_null() -> None:
+    assert _parse_pop_freqs("null") == [0.0]
+
+
+# ---------------------------------------------------------------------------
+# Error paths: malformed variant strings
+# ---------------------------------------------------------------------------
+
+
+def test_parsed_variants_empty_string_raises() -> None:
+    # variants="" yields one empty token which cannot be split into 4 fields.
+    hap = create_haplotype(variants="", n_variants=0)
+    with pytest.raises(ValueError):
+        hap.parsed_variants()
+
+
+def test_parsed_variants_too_few_fields_raises() -> None:
+    # "chr1:100:A" has only 3 colon-delimited fields; unpacking into 4 raises ValueError.
+    hap = create_haplotype(variants="chr1:100:A", n_variants=1)
+    with pytest.raises(ValueError):
+        hap.parsed_variants()
+
+
+def test_contig_malformed_variants_raises() -> None:
+    # contig() delegates to parsed_variants(), so a malformed string propagates the error.
+    hap = create_haplotype(variants="", n_variants=0)
+    with pytest.raises(ValueError):
+        hap.contig()
