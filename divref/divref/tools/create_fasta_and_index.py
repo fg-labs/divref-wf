@@ -13,9 +13,9 @@ from fgpyo.io import assert_fasta_indexed
 from fgpyo.io import assert_path_is_readable
 from fgpyo.io import assert_path_is_writable
 
+from divref import defaults
 from divref.haplotype import get_haplo_sequence
 from divref.haplotype import split_haplotypes
-from divref import defaults
 
 logger = logging.getLogger(__name__)
 
@@ -301,6 +301,7 @@ def create_fasta_and_index(
         frequency_cutoff=frequency_cutoff,
         merge=merge,
         version_str=version_str,
+        reference_genome=reference_genome,
         tmp_dir=tmp_dir,
     )
 
