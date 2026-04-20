@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 
 import hail as hl
+from fgpyo.io import assert_path_is_writable
 
 from divref import defaults
 from divref.alias import HailPath
@@ -16,8 +17,8 @@ def gnomad_hail_table_test_data(
     *,
     in_gnomad_hgdp_variant_annotation_table: HailPath = defaults.GNOMAD_HGDP_1KG_VARIANT_ANNOTATION_HAIL_TABLE,  # noqa: E501
     in_gnomad_hgdp_sample_metadata: HailPath = defaults.GNOMAD_HGDP_1KG_SAMPLE_METADATA_HAIL_TABLE,  # noqa: E501
-    out_variant_annotation_table: HailPath,
-    out_sample_metadata: HailPath,
+    out_variant_annotation_table: Path,
+    out_sample_metadata: Path,
     locus: str = "chr1:100001-200000",
     gcs_credentials_path: Path = Path("~/.config/gcloud/application_default_credentials.json"),
 ) -> None:
@@ -34,6 +35,9 @@ def gnomad_hail_table_test_data(
         locus: Locus interval for variant filtering.
         gcs_credentials_path: Path to GCS default credentials JSON file.
     """
+    assert_path_is_writable(out_variant_annotation_table)
+    assert_path_is_writable(out_sample_metadata)
+
     hail_init(gcs_credentials_path.expanduser())
 
     va = hl.read_table(in_gnomad_hgdp_variant_annotation_table)

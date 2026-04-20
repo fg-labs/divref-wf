@@ -3,13 +3,15 @@
 from pathlib import Path
 
 import hail as hl
-from pydantic import BaseModel
+from fgmetric import Metric
+from fgmetric import MetricWriter
+from fgpyo.io import assert_directory_exists
+from fgpyo.io import assert_path_is_writable
 
-from divref.alias import HailPath
 from divref.haplotype import split_haplotypes
 
 
-class _HGDPResult(BaseModel):
+class _HGDPResult(Metric):
     """Summary of unique haplotype count for one (frequency, window_size) parameter combination."""
 
     frequency_cutoff: float
@@ -17,7 +19,7 @@ class _HGDPResult(BaseModel):
     hgdp_haplotype_count: int
 
 
-class _GnomADResult(BaseModel):
+class _GnomADResult(Metric):
     """Count of gnomAD variants above a given frequency cutoff."""
 
     frequency_cutoff: float
@@ -26,8 +28,8 @@ class _GnomADResult(BaseModel):
 
 def compute_haplotype_statistics(
     *,
-    haplotypes_table_path: HailPath,
-    gnomad_va_file: HailPath,
+    haplotypes_table_path: Path,
+    gnomad_va_file: Path,
     window_sizes: list[int],
     frequency_cutoffs: list[float],
     output_base: Path,
@@ -50,44 +52,39 @@ def compute_haplotype_statistics(
         output_base: Base path for output TSV files; writes {output_base}.hgdp.tsv
             and {output_base}.gnomad.tsv.
     """
-    hl.init()
-
-    ht = hl.read_table(haplotypes_table_path).key_by()
-    va = hl.read_table(gnomad_va_file)
-
-    hgdp_results: list[_HGDPResult] = []
-    gnomad_results: list[_GnomADResult] = []
-
-    for frequency in frequency_cutoffs:
-        ht_filtered = ht.filter(hl.max(ht.all_pop_freqs.map(lambda x: x.empirical_AF)) >= frequency)
-        for window_size in window_sizes:
-            ht2 = split_haplotypes(ht_filtered, window_size)
-            n_unique = ht2.key_by("haplotype").distinct().key_by().count()
-            hgdp_results.append(
-                _HGDPResult(
-                    frequency_cutoff=frequency,
-                    window_size=window_size,
-                    hgdp_haplotype_count=n_unique,
-                )
-            )
-
-        gnomad_count = va.filter(hl.max(va.pop_freqs.map(lambda x: x.AF)) >= frequency).count()
-        gnomad_results.append(
-            _GnomADResult(frequency_cutoff=frequency, gnomad_variant_count=gnomad_count)
-        )
+    assert_directory_exists(haplotypes_table_path)
+    assert_directory_exists(gnomad_va_file)
 
     out_hgdp: Path = output_base.with_suffix(".hgdp.tsv")
-    with out_hgdp.open("w") as f:
-        f.write("frequency\twindow_size\thgdp_haplotype_count\n")
-        for hgdp_result in hgdp_results:
-            f.write(
-                f"{hgdp_result.frequency_cutoff}\t"
-                f"{hgdp_result.window_size}\t"
-                f"{hgdp_result.hgdp_haplotype_count}\n"
-            )
-
     out_gnomad: Path = output_base.with_suffix(".gnomad.tsv")
-    with out_gnomad.open("w") as f:
-        f.write("frequency\tgnomad_variant_count\n")
-        for gnomad_result in gnomad_results:
-            f.write(f"{gnomad_result.frequency_cutoff}\t{gnomad_result.gnomad_variant_count}\n")
+    assert_path_is_writable(out_hgdp)
+    assert_path_is_writable(out_gnomad)
+
+    hl.init()
+
+    ht = hl.read_table(str(haplotypes_table_path)).key_by()
+    va = hl.read_table(str(gnomad_va_file))
+
+    with (
+        MetricWriter(_HGDPResult, out_hgdp) as hgdp_writer,
+        MetricWriter(_GnomADResult, out_gnomad) as gnomad_writer,
+    ):
+        for frequency in frequency_cutoffs:
+            ht_filtered = ht.filter(
+                hl.max(ht.all_pop_freqs.map(lambda x: x.empirical_AF)) >= frequency
+            )
+            for window_size in window_sizes:
+                ht2 = split_haplotypes(ht_filtered, window_size)
+                n_unique = ht2.key_by("haplotype").distinct().key_by().count()
+                hgdp_writer.write(
+                    _HGDPResult(
+                        frequency_cutoff=frequency,
+                        window_size=window_size,
+                        hgdp_haplotype_count=n_unique,
+                    )
+                )
+
+            gnomad_count = va.filter(hl.max(va.pop_freqs.map(lambda x: x.AF)) >= frequency).count()
+            gnomad_writer.write(
+                _GnomADResult(frequency_cutoff=frequency, gnomad_variant_count=gnomad_count)
+            )

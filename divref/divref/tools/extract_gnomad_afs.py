@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import hail as hl
+from fgpyo.io import assert_path_is_writable
 
 from divref import defaults
 from divref.alias import HailPath
@@ -13,7 +14,7 @@ from divref.haplotype import to_hashable_items
 def extract_gnomad_afs(
     *,
     in_gnomad_sites_table: HailPath,
-    out_variant_annotation_table: HailPath,
+    out_variant_annotation_table: Path,
     contig: str,
     freq_threshold: float = 0.001,
     populations: list[str] = defaults.POPULATIONS,
@@ -36,6 +37,8 @@ def extract_gnomad_afs(
         reference_genome: Reference genome to use. Defaults to "GRCh38".
         gcs_credentials_path: Path to GCS default credentials JSON file.
     """
+    assert_path_is_writable(out_variant_annotation_table)
+
     hail_init(gcs_credentials_path.expanduser())
 
     va_all = hl.read_table(in_gnomad_sites_table)
@@ -58,4 +61,4 @@ def extract_gnomad_afs(
     va = va.select_globals(pops=populations)
     va = va.select(pop_freqs=hl.literal(pop_indices).map(lambda i: va.gnomad_freq[i]))
     va = va.filter(hl.any(lambda x: x.AF > freq_threshold, va.pop_freqs))
-    va.naive_coalesce(64).write(out_variant_annotation_table, overwrite=True)
+    va.naive_coalesce(64).write(str(out_variant_annotation_table), overwrite=True)

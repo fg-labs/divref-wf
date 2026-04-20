@@ -5,9 +5,11 @@ from pathlib import Path
 from typing import Callable
 
 import hail as hl
+from fgpyo.io import assert_directory_exists
+from fgpyo.io import assert_path_is_readable
+from fgpyo.io import assert_path_is_writable
 
 from divref import defaults
-from divref.alias import HailPath
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +18,7 @@ def _get_haplotypes(
     ht: hl.Table,
     windower_f: Callable[[hl.Expression], hl.Expression],
     idx: int,
-    output_base: HailPath,
+    output_base: Path,
     pop_ints: dict[str, int],
 ) -> hl.Table:
     """
@@ -214,17 +216,17 @@ def _get_haplotypes(
     )
 
     logger.info("Writing %s.%s.ht ...", output_base, idx)
-    return hte.checkpoint(f"{output_base}.{idx}.ht", overwrite=True)
+    return hte.checkpoint(f"{str(output_base)}.{idx}.ht", overwrite=True)
 
 
 def compute_haplotypes(
     *,
-    vcfs_path: HailPath,
-    gnomad_va_file: HailPath,
-    gnomad_sa_file: HailPath,
+    vcfs_path: Path,
+    gnomad_va_file: Path,
+    gnomad_sa_file: Path,
     window_size: int,
     freq_threshold: float,
-    output_base: HailPath,
+    output_base: Path,
     temp_dir: Path = Path("/tmp"),
 ) -> None:
     """
@@ -246,14 +248,24 @@ def compute_haplotypes(
             and the final {output_base}.ht.
         temp_dir: Local directory for Hail temporary files.
     """
+    assert_path_is_readable(vcfs_path)
+    assert_directory_exists(gnomad_va_file)
+    assert_directory_exists(gnomad_sa_file)
+    assert_path_is_writable(output_base.with_suffix(output_base.suffix + ".1.ht"))
+    assert_path_is_writable(output_base.with_suffix(output_base.suffix + ".2.ht"))
+    assert_path_is_writable(output_base.with_suffix(output_base.suffix + ".ht"))
+
     hl.init(tmp_dir=str(temp_dir))
 
-    gnomad_sa = hl.read_table(gnomad_sa_file)
-    gnomad_va = hl.read_table(gnomad_va_file)
+    gnomad_sa = hl.read_table(str(gnomad_sa_file))
+    gnomad_va = hl.read_table(str(gnomad_va_file))
     gnomad_va = gnomad_va.filter(hl.max(gnomad_va.pop_freqs.map(lambda x: x.AF)) >= freq_threshold)
 
     mt = hl.import_vcf(
-        vcfs_path, reference_genome=defaults.REFERENCE_GENOME, min_partitions=64, force_bgz=True
+        str(vcfs_path),
+        reference_genome=defaults.REFERENCE_GENOME,
+        min_partitions=64,
+        force_bgz=True,
     )
     mt = mt.select_rows().select_cols()
     mt = mt.annotate_rows(freq=gnomad_va[mt.row_key].pop_freqs)
@@ -300,4 +312,4 @@ def compute_haplotypes(
 
     htu = window1.union(window2)
     logger.info("Writing final %s.ht ...", output_base)
-    htu.key_by("haplotype").naive_coalesce(64).write(f"{output_base}.ht", overwrite=True)
+    htu.key_by("haplotype").naive_coalesce(64).write(f"{str(output_base)}.ht", overwrite=True)

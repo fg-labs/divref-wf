@@ -3,17 +3,15 @@
 from pathlib import Path
 
 import hail as hl
-
-from divref.alias import HailPath
-from divref.hail import hail_init
+from fgpyo.io import assert_directory_exists
+from fgpyo.io import assert_path_is_writable
 
 
 def create_gnomad_sites_vcf(
     *,
-    sites_table_path: HailPath,
-    output_vcf_path: HailPath,
+    sites_table_path: Path,
+    output_vcf_path: Path,
     min_popmax: float,
-    gcs_credentials_path: Path = Path("~/.config/gcloud/application_default_credentials.json"),
 ) -> None:
     """
     Export gnomAD variant sites above a population frequency threshold as VCF.
@@ -27,11 +25,13 @@ def create_gnomad_sites_vcf(
             `extract-gnomad-afs`.
         output_vcf_path: Output path for the VCF file.
         min_popmax: Minimum allele frequency in any population to include a site.
-        gcs_credentials_path: Path to GCS default credentials JSON file.
     """
-    hail_init(gcs_credentials_path.expanduser())
+    assert_directory_exists(sites_table_path)
+    assert_path_is_writable(output_vcf_path)
 
-    ht = hl.read_table(sites_table_path)
+    hl.init()
+
+    ht = hl.read_table(str(sites_table_path))
     pops: list[str] = ht.pops.collect()[0]
 
     filt = ht.filter(hl.max(ht.pop_freqs.map(lambda x: x.AF)) >= min_popmax)
@@ -42,4 +42,4 @@ def create_gnomad_sites_vcf(
             for fd in filt.pop_freqs[i]
         })
     )
-    hl.export_vcf(filt, output_vcf_path)
+    hl.export_vcf(filt, str(output_vcf_path))
