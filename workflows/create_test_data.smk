@@ -14,6 +14,7 @@ LOCUS: str = "chr1:100001-200000"
 LOCUS_FILENAME: str = "chr1_100001_200000"
 MIN_POP_AF_EXTRACT_GNOMAD_AFS: float = 0.001
 MIN_POP_AF_COMPUTE_HAPLOTYPES: float = 0.005
+MIN_POPMAX_AF_CREATE_GNOMAD_SITES_VCF: float = 0.01
 WINDOW_SIZE_COMPUTE_HAPLOTYPES: int = 5000
 
 ####################################################################################################
@@ -30,6 +31,7 @@ rule all:
         f"{OUTPUT_DIR}/{LOCUS_FILENAME}.gnomad_afs.ht",
         f"{OUTPUT_DIR}/hgdp_1kg_sample_metadata.extract.ht",
         f"{OUTPUT_DIR}/{LOCUS_FILENAME}_haplotypes.ht",
+        f"{OUTPUT_DIR}/{LOCUS_FILENAME}.gnomad_sites.vcf.bgz",
 
 
 ####################################################################################################
@@ -159,5 +161,28 @@ rule compute_haplotypes:
             
             # remove intermediate files
             rm -r {params.output_base}.[12].ht
+        ) &> {log}
+        """
+
+
+####################################################################################################
+# Create a sites VCF from the gnomAD Hail table.
+####################################################################################################
+rule create_gnomad_sites_vcf:
+    input:
+        variant_ht=f"{OUTPUT_DIR}/{LOCUS_FILENAME}.gnomad_afs.ht",
+    output:
+        vcf=f"{OUTPUT_DIR}/{LOCUS_FILENAME}.gnomad_sites.vcf.bgz",
+    log:
+        f"logs/create_test_data/create_gnomad_sites_vcf.{LOCUS_FILENAME}.log",
+    params:
+        min_popmax=MIN_POPMAX_AF_CREATE_GNOMAD_SITES_VCF,
+    shell:
+        """
+        (
+            divref create-gnomad-sites-vcf \
+                --sites-table-path {input.variant_ht} \
+                --output-vcf-path {output.vcf} \
+                --min-popmax {params.min_popmax}
         ) &> {log}
         """
