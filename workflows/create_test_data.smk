@@ -8,7 +8,7 @@ from pathlib import Path
 # Inputs
 ####################################################################################################
 
-OUTPUT_DIR: Path = Path("data/test")
+OUTPUT_DIR: Path = Path("divref/tests/data")
 LOCUS_CHROM: str = "chr1"
 LOCUS: str = "chr1:100001-200000"
 LOCUS_FILENAME: str = "chr1_100001_200000"
@@ -184,5 +184,8 @@ rule create_gnomad_sites_vcf:
                 --sites-table-path {input.variant_ht} \
                 --output-vcf-path {output.vcf} \
                 --min-popmax {params.min_popmax}
+            
+            # unneeded index file
+            rm .chr1_100001_200000.gnomad_sites.vcf.bgz.crc
         ) &> {log}
         """
