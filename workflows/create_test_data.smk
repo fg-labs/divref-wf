@@ -12,7 +12,9 @@ OUTPUT_DIR: Path = Path("data/test")
 LOCUS_CHROM: str = "chr1"
 LOCUS: str = "chr1:100001-200000"
 LOCUS_FILENAME: str = "chr1_100001_200000"
-MIN_POP_AF_FOR_INPUT_TO_HAPLOTYPE_BUILDING: float = 0.001
+MIN_POP_AF_EXTRACT_GNOMAD_AFS: float = 0.001
+MIN_POP_AF_COMPUTE_HAPLOTYPES: float = 0.005
+WINDOW_SIZE_COMPUTE_HAPLOTYPES: int = 5000
 
 ####################################################################################################
 # Rules
@@ -27,6 +29,7 @@ rule all:
         f"{OUTPUT_DIR}/{LOCUS_FILENAME}.vcf.gz.tbi",
         f"{OUTPUT_DIR}/{LOCUS_FILENAME}.gnomad_afs.ht",
         f"{OUTPUT_DIR}/hgdp_1kg_sample_metadata.extract.ht",
+        f"{OUTPUT_DIR}/{LOCUS_FILENAME}_haplotypes.ht",
 
 
 ####################################################################################################
@@ -93,7 +96,7 @@ rule extract_gnomad_afs:
         f"logs/create_test_data/extract_gnomad_afs.{LOCUS_FILENAME}.log",
     params:
         locus=LOCUS,
-        frequency=MIN_POP_AF_FOR_INPUT_TO_HAPLOTYPE_BUILDING,
+        freq_threshold=MIN_POP_AF_EXTRACT_GNOMAD_AFS,
     shell:
         """
         (
@@ -101,7 +104,7 @@ rule extract_gnomad_afs:
                 --in-gnomad-sites-table {input.variant_ht} \
                 --out-variant-annotation-table {output.variant_ht} \
                 --contig {params.locus} \
-                --freq-threshold {params.frequency}
+                --freq-threshold {params.freq_threshold}
         ) &> {log}
         """
 
@@ -122,5 +125,39 @@ rule extract_sample_metadata:
             divref extract-sample-metadata \
                 --in-gnomad-hgdp-sample-data {input.sample_ht} \
                 --out-sample-metadata {output.sample_ht}
+        ) &> {log}
+        """
+
+
+####################################################################################################
+# Compute haplotypes from the sites and phased genotypes.
+####################################################################################################
+rule compute_haplotypes:
+    input:
+        vcf=f"{OUTPUT_DIR}/{LOCUS_FILENAME}.vcf.gz",
+        tbi=f"{OUTPUT_DIR}/{LOCUS_FILENAME}.vcf.gz.tbi",
+        variant_ht=f"{OUTPUT_DIR}/{LOCUS_FILENAME}.gnomad_afs.ht",
+        sample_ht=f"{OUTPUT_DIR}/hgdp_1kg_sample_metadata.extract.ht",
+    output:
+        haplotypes_ht=directory(f"{OUTPUT_DIR}/{LOCUS_FILENAME}_haplotypes.ht"),
+    log:
+        f"logs/create_test_data/compute_haplotypes.{LOCUS_FILENAME}.log",
+    params:
+        window_size=WINDOW_SIZE_COMPUTE_HAPLOTYPES,
+        freq_threshold=MIN_POP_AF_COMPUTE_HAPLOTYPES,
+        output_base=f"{OUTPUT_DIR}/{LOCUS_FILENAME}_haplotypes",
+    shell:
+        """
+        (
+            divref compute-haplotypes \
+                --vcfs-path {input.vcf} \
+                --gnomad-va-file {input.variant_ht} \
+                --gnomad-sa-file {input.sample_ht} \
+                --window-size {params.window_size} \
+                --freq-threshold {params.freq_threshold} \
+                --output-base {params.output_base}
+            
+            # remove intermediate files
+            rm -r {params.output_base}.[12].ht
         ) &> {log}
         """
