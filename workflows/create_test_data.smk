@@ -97,7 +97,7 @@ rule extract_gnomad_afs:
     log:
         f"logs/create_test_data/extract_gnomad_afs.{LOCUS_FILENAME}.log",
     params:
-        locus=LOCUS,
+        contig=LOCUS_CHROM,
         freq_threshold=MIN_POP_AF_EXTRACT_GNOMAD_AFS,
     shell:
         """
@@ -105,7 +105,7 @@ rule extract_gnomad_afs:
             divref extract-gnomad-afs \
                 --in-gnomad-sites-table {input.variant_ht} \
                 --out-variant-annotation-table {output.variant_ht} \
-                --contig {params.locus} \
+                --contig {params.contig} \
                 --freq-threshold {params.freq_threshold}
         ) &> {log}
         """
