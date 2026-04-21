@@ -9,6 +9,11 @@ properties:
     description: List of chromosomes to generate the resource for.
     default: ["chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10", "chr11", "chr12", "chr13", "chr14", "chr15", "chr16", "chr17", "chr18", "chr19", "chr20", "chr21", "chr22", "chrX", "chrY"]
 
+  populations:
+    type: array
+    description: List of populations to use.
+    default: ["afr", "amr", "eas", "sas", "nfe"]
+
   hgdp_1kg_phased_bcf_prefix:
     type: string
     description: Prefix of the GCS URI for the HGDP+1KG phased BCF files.
@@ -18,6 +23,21 @@ properties:
     type: string
     description: Suffix of the GCS URI for the HGDP+1KG phased BCF files.
     default: ".filtered.SNV_INDEL.phased.shapeit5.bcf"
+
+  hgdp_1kg_variant_annotation_hail_table:
+    type: string
+    description: GCS URI to the HGDP+1KG gnomAD variant annotations Hail table.
+    default: "gs://gcp-public-data--gnomad/release/3.1.2/ht/genomes/gnomad.genomes.v3.1.2.hgdp_1kg_subset_variant_annotations.ht"
+
+  hgdp_1kg_sample_metadata_hail_table:
+    type: string
+    description: GCS URI to the HGDP+1KG gnomAD sample metadata Hail table.
+    default: "gs://gcp-public-data--gnomad/release/3.1.2/ht/genomes/gnomad.genomes.v3.1.2.hgdp_1kg_subset_sample_meta.ht"
+
+  hgdp_1kg_min_pop_af_extract_gnomad_afs:
+    type: number
+    description: Minimum allele frequency for at least one selected population when running `divref extract-gnomad-afs`.
+    default: 0.001
 
   work_dir:
     type: string
