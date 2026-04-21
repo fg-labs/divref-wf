@@ -4,6 +4,7 @@
 # Final output is a set of per-chromosome FASTA files and a DuckDB index.
 ####################################################################################################
 
+import os
 from pathlib import Path
 from snakemake.utils import validate
 
@@ -87,6 +88,7 @@ rule extract_gnomad_afs:
     params:
         variant_ht=HGDP_1KG_VARIANT_ANNOTATION_HAIL_TABLE,
         freq_threshold=HGDP_1KG_MIN_POP_AF_EXTRACT_GNOMAD_AFS,
+        populations=" ".join(POPS),
     shell:
         """
         (
@@ -94,7 +96,8 @@ rule extract_gnomad_afs:
                 --in-gnomad-sites-table {params.variant_ht} \
                 --out-variant-annotation-table {output.variant_ht} \
                 --contig {wildcards.chrom} \
-                --freq-threshold {params.freq_threshold}
+                --freq-threshold {params.freq_threshold} \
+                --populations {params.populations}
         ) &> {log}
         """
 
