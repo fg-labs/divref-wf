@@ -21,6 +21,10 @@ validate(config, os.path.join(workflow.basedir, "config", "config_schema.yml"))
 WORK_DIR: Path = Path(config["work_dir"])
 CHROMS: list[str] = config["chromosomes"]
 POPS: list[str] = config["populations"]
+REFERENCE_GENOME: str = config["reference_genome_base_name"]
+
+REFERENCE_GENOME_URI: str = config["reference_genome_uri"]
+REFERENCE_GENOME_INDEX_URI: str = config["reference_genome_index_uri"]
 
 # The HGDP+1KG phased BCF files are at
 # "{HGDP_1KG_PHASED_BCF_PREFIX}.{chrom}.{HGDP_1KG_PHASED_BCF_SUFFIX}"
@@ -56,6 +60,8 @@ rule all:
             ext=VCF_EXTS,
         ),
         expand(f"{WORK_DIR}/haplotypes/hgdp_1kg.haplotypes.{{chrom}}.ht", chrom=CHROMS),
+        f"{WORK_DIR}/inputs/{REFERENCE_GENOME}.gz",
+        f"{WORK_DIR}/inputs/{REFERENCE_GENOME}.fai",
 
 
 ####################################################################################################
@@ -162,5 +168,27 @@ rule compute_haplotypes:
             
             # remove intermediate files
             rm -r {params.output_base}.[12].ht
+        ) &> {log}
+        """
+
+
+####################################################################################################
+# Downloads the reference genome and its FAI index.
+####################################################################################################
+rule download_reference_genome:
+    output:
+        fasta=f"{WORK_DIR}/inputs/{REFERENCE_GENOME}.gz",
+        fai=f"{WORK_DIR}/inputs/{REFERENCE_GENOME}.fai",
+    log:
+        "logs/generate_divref/download_reference_genome.log",
+    params:
+        fasta_uri=REFERENCE_GENOME_URI,
+        fai_uri=REFERENCE_GENOME_INDEX_URI,
+        fasta_dir=f"{WORK_DIR}/inputs",
+    shell:
+        """
+        (
+            gsutil -m cp {params.fasta_uri} {params.fasta_dir}
+            gsutil -m cp {params.fai_uri} {params.fasta_dir}
         ) &> {log}
         """

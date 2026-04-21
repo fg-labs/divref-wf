@@ -5,6 +5,21 @@ type: object
 additionalProperties: false
 
 properties:
+  reference_genome_uri:
+    type: string
+    description: GCS URI for the reference genome.
+    default: gs://hail-common/references/Homo_sapiens_assembly38.fasta.gz
+
+  reference_genome_index_uri:
+    type: string
+    description: GCS URI for the reference genome FAI index.
+    default: gs://hail-common/references/Homo_sapiens_assembly38.fasta.fai
+
+  reference_genome_base_name:
+    type: string
+    description: Base name for the reference genome. Expected extensions are '.gz' and '.fai'.
+    default: Homo_sapiens_assembly38.fasta
+
   chromosomes:
     type: array
     items:
