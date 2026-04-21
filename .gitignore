@@ -28,3 +28,7 @@
 
 # CSI indexes from accessing BCF files
 **/*.csi
+
+# Snakemake workflow related files
+logs/
+data/
