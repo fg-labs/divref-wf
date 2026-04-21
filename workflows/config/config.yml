@@ -1,2 +1,1 @@
-experiment: "experiment1"
-samples: ["sample1", "sample2"]
+chromosomes: ["chr22"]
