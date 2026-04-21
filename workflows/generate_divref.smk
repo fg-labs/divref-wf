@@ -38,7 +38,7 @@ VCF_EXTS: list[str] = [".vcf.gz", ".vcf.gz.tbi"]
 
 rule all:
     input:
-        f"{WORK_DIR}/hgdp_1kg.sample_metadata.ht",
+        f"{WORK_DIR}/inputs/hgdp_1kg.sample_metadata.ht",
         expand(f"{WORK_DIR}/inputs/hgdp_1kg.sites.{{chrom}}.ht", chrom=CHROMS),
         expand(
             f"{WORK_DIR}/inputs/hgdp_1kg.phased_genotypes.{{chrom}}{{ext}}",
@@ -104,7 +104,7 @@ rule extract_gnomad_afs:
 ####################################################################################################
 rule extract_sample_metadata:
     output:
-        sample_ht=directory(f"{WORK_DIR}/hgdp_1kg.sample_metadata.ht"),
+        sample_ht=directory(f"{WORK_DIR}/inputs/hgdp_1kg.sample_metadata.ht"),
     log:
         "logs/generate_divref/extract_sample_metadata.log",
     params:
