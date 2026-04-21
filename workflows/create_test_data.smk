@@ -12,6 +12,7 @@ OUTPUT_DIR: Path = Path("data/test")
 LOCUS_CHROM: str = "chr1"
 LOCUS: str = "chr1:100001-200000"
 LOCUS_FILENAME: str = "chr1_100001_200000"
+MIN_POP_AF_FOR_INPUT_TO_HAPLOTYPE_BUILDING: float = 0.001
 
 ####################################################################################################
 # Rules
@@ -24,6 +25,8 @@ rule all:
         f"{OUTPUT_DIR}/hgdp_1kg_sample_metadata.ht",
         f"{OUTPUT_DIR}/{LOCUS_FILENAME}.vcf.gz",
         f"{OUTPUT_DIR}/{LOCUS_FILENAME}.vcf.gz.tbi",
+        f"{OUTPUT_DIR}/{LOCUS_FILENAME}.gnomad_afs.ht",
+        f"{OUTPUT_DIR}/hgdp_1kg_sample_metadata.extract.ht",
 
 
 ####################################################################################################
@@ -73,5 +76,51 @@ rule subset_phased_genotypes:
                 --output {output.vcf} \
                 --write-index=tbi \
                 {params.bcf}
+        ) &> {log}
+        """
+
+
+####################################################################################################
+# Extracts allele frequencies for the default populations and subsets to sites over the specified
+# minimum frequency.
+####################################################################################################
+rule extract_gnomad_afs:
+    input:
+        variant_ht=f"{OUTPUT_DIR}/{LOCUS_FILENAME}.ht",
+    output:
+        variant_ht=directory(f"{OUTPUT_DIR}/{LOCUS_FILENAME}.gnomad_afs.ht"),
+    log:
+        f"logs/create_test_data/extract_gnomad_afs.{LOCUS_FILENAME}.log",
+    params:
+        locus=LOCUS,
+        frequency=MIN_POP_AF_FOR_INPUT_TO_HAPLOTYPE_BUILDING,
+    shell:
+        """
+        (
+            divref extract-gnomad-afs \
+                --in-gnomad-sites-table {input.variant_ht} \
+                --out-variant-annotation-table {output.variant_ht} \
+                --contig {params.locus} \
+                --freq-threshold {params.frequency}
+        ) &> {log}
+        """
+
+
+####################################################################################################
+# Extracts selected fields from sample metadata.
+####################################################################################################
+rule extract_sample_metadata:
+    input:
+        sample_ht=f"{OUTPUT_DIR}/hgdp_1kg_sample_metadata.ht",
+    output:
+        sample_ht=directory(f"{OUTPUT_DIR}/hgdp_1kg_sample_metadata.extract.ht"),
+    log:
+        f"logs/create_test_data/extract_sample_metadata.{LOCUS_FILENAME}.log",
+    shell:
+        """
+        (
+            divref extract-sample-metadata \
+                --in-gnomad-hgdp-sample-data {input.sample_ht} \
+                --out-sample-metadata {output.sample_ht}
         ) &> {log}
         """
