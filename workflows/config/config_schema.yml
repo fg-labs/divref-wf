@@ -2,6 +2,7 @@ $schema: "https://json-schema.org/draft/2020-12/schema"
 description: Configuration schema for generate_divref.smk
 
 type: object
+additionalProperties: false
 
 properties:
   chromosomes:
