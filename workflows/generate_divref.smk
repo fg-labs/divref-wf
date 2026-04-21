@@ -29,6 +29,15 @@ HGDP_1KG_PHASED_BCF_SUFFIX: str = config["hgdp_1kg_phased_bcf_suffix"]
 HGDP_1KG_VARIANT_ANNOTATION_HAIL_TABLE: str = config["hgdp_1kg_variant_annotation_hail_table"]
 HGDP_1KG_SAMPLE_METADATA_HAIL_TABLE: str = config["hgdp_1kg_sample_metadata_hail_table"]
 HGDP_1KG_MIN_POP_AF_EXTRACT_GNOMAD_AFS: float = config["hgdp_1kg_min_pop_af_extract_gnomad_afs"]
+HGDP_1KG_HAPLOTYPE_WINDOW_SIZE: int = config["hgdp_1kg_haplotype_window_size"]
+HGDP_1KG_MIN_POP_AF_COMPUTE_HAPLOTYPES: float = config["hgdp_1kg_min_pop_af_compute_haplotypes"]
+
+if HGDP_1KG_MIN_POP_AF_EXTRACT_GNOMAD_AFS > HGDP_1KG_MIN_POP_AF_COMPUTE_HAPLOTYPES:
+    raise ValueError(
+        f"hgdp_1kg_min_pop_af_extract_gnomad_afs ({HGDP_1KG_MIN_POP_AF_EXTRACT_GNOMAD_AFS}) "
+        f"must be <= hgdp_1kg_min_pop_af_compute_haplotypes "
+        f"({HGDP_1KG_MIN_POP_AF_COMPUTE_HAPLOTYPES})"
+    )
 
 VCF_EXTS: list[str] = [".vcf.gz", ".vcf.gz.tbi"]
 
@@ -46,6 +55,7 @@ rule all:
             chrom=CHROMS,
             ext=VCF_EXTS,
         ),
+        expand(f"{WORK_DIR}/haplotypes/hgdp_1kg.haplotypes.{{chrom}}.ht", chrom=CHROMS),
 
 
 ####################################################################################################
@@ -103,7 +113,7 @@ rule extract_gnomad_afs:
 
 
 ####################################################################################################
-# Extracts selected fields from sample metadata.
+# Extracts selected fields from HGDP+1KG sample metadata.
 ####################################################################################################
 rule extract_sample_metadata:
     output:
@@ -118,5 +128,39 @@ rule extract_sample_metadata:
             divref extract-sample-metadata \
                 --in-gnomad-hgdp-sample-data {params.sample_ht} \
                 --out-sample-metadata {output.sample_ht}
+        ) &> {log}
+        """
+
+
+####################################################################################################
+# Compute haplotypes from the HGDP+1KG filtered sites, sample metadata, and phased genotypes.
+####################################################################################################
+rule compute_haplotypes:
+    input:
+        vcf=f"{WORK_DIR}/inputs/hgdp_1kg.phased_genotypes.{{chrom}}.vcf.gz",
+        tbi=f"{WORK_DIR}/inputs/hgdp_1kg.phased_genotypes.{{chrom}}.vcf.gz.tbi",
+        variant_ht=f"{WORK_DIR}/inputs/hgdp_1kg.sites.{{chrom}}.ht",
+        sample_ht=f"{WORK_DIR}/inputs/hgdp_1kg.sample_metadata.ht",
+    output:
+        haplotypes_ht=directory(f"{WORK_DIR}/haplotypes/hgdp_1kg.haplotypes.{{chrom}}.ht"),
+    log:
+        "logs/generate_divref/compute_haplotypes.{chrom}.log",
+    params:
+        window_size=HGDP_1KG_HAPLOTYPE_WINDOW_SIZE,
+        freq_threshold=HGDP_1KG_MIN_POP_AF_COMPUTE_HAPLOTYPES,
+        output_base=f"{WORK_DIR}/haplotypes/hgdp_1kg.haplotypes.{{chrom}}",
+    shell:
+        """
+        (
+            divref compute-haplotypes \
+                --vcfs-path {input.vcf} \
+                --gnomad-va-file {input.variant_ht} \
+                --gnomad-sa-file {input.sample_ht} \
+                --window-size {params.window_size} \
+                --freq-threshold {params.freq_threshold} \
+                --output-base {params.output_base}
+            
+            # remove intermediate files
+            rm -r {params.output_base}.[12].ht
         ) &> {log}
         """
