@@ -60,5 +60,5 @@ def extract_gnomad_afs(
 
     va = va.select_globals(pops=populations)
     va = va.select(pop_freqs=hl.literal(pop_indices).map(lambda i: va.gnomad_freq[i]))
-    va = va.filter(hl.any(lambda x: x.AF > freq_threshold, va.pop_freqs))
+    va = va.filter(hl.any(lambda x: x.AF >= freq_threshold, va.pop_freqs))
     va.naive_coalesce(64).write(str(out_variant_annotation_table), overwrite=True)
