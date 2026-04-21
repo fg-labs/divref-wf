@@ -47,10 +47,10 @@ def gnomad_hail_table_test_data(
     va_subset = hl.filter_intervals(va, roi)
 
     logger.info(f"Writing {va_subset.count()} variants to {out_variant_annotation_table}.")
-    va_subset.write(out_variant_annotation_table, overwrite=True)
+    va_subset.write(str(out_variant_annotation_table), overwrite=True)
 
     sa = hl.read_table(in_gnomad_hgdp_sample_metadata)
     sa = sa.select("gnomad_population_inference").select_globals()
 
     logger.info(f"Writing {sa.count()} samples to {out_sample_metadata}.")
-    sa.naive_coalesce(1).write(out_sample_metadata, overwrite=True)
+    sa.naive_coalesce(1).write(str(out_sample_metadata), overwrite=True)
