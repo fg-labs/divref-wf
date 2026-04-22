@@ -9,7 +9,6 @@ import duckdb
 import hail as hl
 import polars
 from fgpyo.io import assert_directory_exists
-from fgpyo.io import assert_fasta_indexed
 from fgpyo.io import assert_path_is_readable
 from fgpyo.io import assert_path_is_writable
 
