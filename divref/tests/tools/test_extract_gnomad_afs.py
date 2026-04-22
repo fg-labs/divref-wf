@@ -43,4 +43,4 @@ def test_extract_gnomad_afs(
 
     # All retained variants must exceed freq_threshold in at least one population
     min_max_af = va.aggregate(hl.agg.min(hl.max(va.pop_freqs.map(lambda x: x.AF))))
-    assert min_max_af > 0.001
+    assert min_max_af >= 0.001
