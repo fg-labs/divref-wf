@@ -38,6 +38,10 @@ rule all:
             gnomad_version=GNOMAD_VERSIONS,
         ),
         expand(
+            f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.af_diffs_all.png",
+            gnomad_version=GNOMAD_VERSIONS,
+        ),
+        expand(
             f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.not_in_gnomad_afs.png",
             gnomad_version=GNOMAD_VERSIONS,
         ),
@@ -105,6 +109,7 @@ rule compare_divref_gnomad:
         tsv=f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.tsv",
     output:
         af_diffs_png=f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.af_diffs.png",
+        af_diffs_all_png=f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.af_diffs_all.png",
         not_in_gnomad_png=f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.not_in_gnomad_afs.png",
         not_in_gnomad_tsv=f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.divref_not_in_gnomad.tsv",
     log:

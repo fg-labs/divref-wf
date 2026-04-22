@@ -113,10 +113,24 @@ p <- divref_in_gnomad_with_af_diffs %>%
   scale_y_log10() +
   theme_bw() +
   xlab(paste0(opts$gnomad_label, " - DivRef 1.1 AF")) +
-  ylab("Variants") +
-  labs(title = paste0("DivRef 1.1 'gnomAD_variant' variants found in ", opts$gnomad_label))
+  ylab("Variants")
 
 ggsave(paste0(opts$output_base, ".af_diffs.png"), p, height = 10, width = 6)
+
+p <- divref_in_gnomad_with_af_diffs %>%
+  select(variants, diff_afr, diff_amr, diff_eas, diff_sas, diff_nfe) %>%
+  pivot_longer(
+    cols = c(diff_afr, diff_amr, diff_eas, diff_sas, diff_nfe),
+    names_to = "population", values_to = "diff_freq", names_prefix = "diff_"
+  ) %>%
+  ggplot(aes(x = diff_freq)) +
+  geom_histogram() +
+  scale_y_log10() +
+  theme_bw() +
+  xlab(paste0(opts$gnomad_label, " - DivRef 1.1 AF")) +
+  ylab("Variants")
+
+ggsave(paste0(opts$output_base, ".af_diffs_all.png"), p, height = 6, width = 6)
 
 # Count: variants with large AF differences ----
 
