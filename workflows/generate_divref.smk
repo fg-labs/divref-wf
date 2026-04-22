@@ -18,13 +18,16 @@ configfile: os.path.join(workflow.basedir, "config", "config.yml")
 
 validate(config, os.path.join(workflow.basedir, "config", "config_schema.yml"))
 
+VERSION: int = config["version"]
+
 WORK_DIR: Path = Path(config["work_dir"])
+TMP_DIR: Path = Path(config["tmp_dir"])
+
 CHROMS: list[str] = config["chromosomes"]
 POPS: list[str] = config["populations"]
-REFERENCE_GENOME: str = config["reference_genome_base_name"]
 
+REFERENCE_GENOME: str = config["reference_genome_base_name"]
 REFERENCE_GENOME_URI: str = config["reference_genome_uri"]
-REFERENCE_GENOME_INDEX_URI: str = config["reference_genome_index_uri"]
 
 # The HGDP+1KG phased BCF files are at
 # "{HGDP_1KG_PHASED_BCF_PREFIX}.{chrom}.{HGDP_1KG_PHASED_BCF_SUFFIX}"
@@ -35,6 +38,9 @@ HGDP_1KG_SAMPLE_METADATA_HAIL_TABLE: str = config["hgdp_1kg_sample_metadata_hail
 HGDP_1KG_MIN_POP_AF_EXTRACT_GNOMAD_AFS: float = config["hgdp_1kg_min_pop_af_extract_gnomad_afs"]
 HGDP_1KG_HAPLOTYPE_WINDOW_SIZE: int = config["hgdp_1kg_haplotype_window_size"]
 HGDP_1KG_MIN_POP_AF_COMPUTE_HAPLOTYPES: float = config["hgdp_1kg_min_pop_af_compute_haplotypes"]
+HGDP_1KG_MIN_EST_GNOMAD_HAPLOTYPE_AF: float = config["hgdp_1kg_min_estimated_gnomad_haplotype_af"]
+
+SEQUENCE_WINDOW_SIZE: int = config["sequence_window_size"]
 
 if HGDP_1KG_MIN_POP_AF_EXTRACT_GNOMAD_AFS > HGDP_1KG_MIN_POP_AF_COMPUTE_HAPLOTYPES:
     raise ValueError(
@@ -52,16 +58,11 @@ VCF_EXTS: list[str] = [".vcf.gz", ".vcf.gz.tbi"]
 
 rule all:
     input:
-        f"{WORK_DIR}/inputs/hgdp_1kg.sample_metadata.ht",
-        expand(f"{WORK_DIR}/inputs/hgdp_1kg.sites.{{chrom}}.ht", chrom=CHROMS),
+        expand(f"{WORK_DIR}/output/hgdp_1kg.haplotypes.{{chrom}}.haplotypes.fasta", chrom=CHROMS),
         expand(
-            f"{WORK_DIR}/inputs/hgdp_1kg.phased_genotypes.{{chrom}}{{ext}}",
+            f"{WORK_DIR}/output/hgdp_1kg.haplotypes.{{chrom}}.haplotypes.index.duckdb",
             chrom=CHROMS,
-            ext=VCF_EXTS,
         ),
-        expand(f"{WORK_DIR}/haplotypes/hgdp_1kg.haplotypes.{{chrom}}.ht", chrom=CHROMS),
-        f"{WORK_DIR}/inputs/{REFERENCE_GENOME}.gz",
-        f"{WORK_DIR}/inputs/{REFERENCE_GENOME}.fai",
 
 
 ####################################################################################################
@@ -173,22 +174,75 @@ rule compute_haplotypes:
 
 
 ####################################################################################################
-# Downloads the reference genome and its FAI index.
+# Downloads and unzips the reference genome.
 ####################################################################################################
 rule download_reference_genome:
     output:
-        fasta=f"{WORK_DIR}/inputs/{REFERENCE_GENOME}.gz",
-        fai=f"{WORK_DIR}/inputs/{REFERENCE_GENOME}.fai",
+        fasta=f"{WORK_DIR}/inputs/{REFERENCE_GENOME}.fasta",
     log:
         "logs/generate_divref/download_reference_genome.log",
     params:
         fasta_uri=REFERENCE_GENOME_URI,
-        fai_uri=REFERENCE_GENOME_INDEX_URI,
-        fasta_dir=f"{WORK_DIR}/inputs",
     shell:
         """
         (
-            gsutil -m cp {params.fasta_uri} {params.fasta_dir}
-            gsutil -m cp {params.fai_uri} {params.fasta_dir}
+            gsutil -m cp {params.fasta_uri} {output.fasta}.gz
+            gunzip {output.fasta}.gz
+        ) &> {log}
+        """
+
+
+####################################################################################################
+# Indexes the reference genome.
+####################################################################################################
+rule index_reference_genome:
+    input:
+        fasta=f"{WORK_DIR}/inputs/{REFERENCE_GENOME}.fasta",
+    output:
+        fai=f"{WORK_DIR}/inputs/{REFERENCE_GENOME}.fai",
+    log:
+        "logs/generate_divref/index_reference_genome.log",
+    shell:
+        """
+        (
+            samtools faidx \
+                {input.fasta} \
+                --output {output.fai}
+        ) &> {log}
+        """
+
+
+####################################################################################################
+# Create the DivRef per-chromosome FASTAs and indexes.
+####################################################################################################
+rule create_fasta_and_index:
+    input:
+        haplotypes_ht=f"{WORK_DIR}/haplotypes/hgdp_1kg.haplotypes.{{chrom}}.ht",
+        variant_ht=f"{WORK_DIR}/inputs/hgdp_1kg.sites.{{chrom}}.ht",
+        fasta=f"{WORK_DIR}/inputs/{REFERENCE_GENOME}.fasta",
+        fai=f"{WORK_DIR}/inputs/{REFERENCE_GENOME}.fai",
+    output:
+        fasta=f"{WORK_DIR}/output/hgdp_1kg.haplotypes.{{chrom}}.haplotypes.fasta",
+        duckdb_index=f"{WORK_DIR}/output/hgdp_1kg.haplotypes.{{chrom}}.haplotypes.index.duckdb",
+    log:
+        "logs/generate_divref/create_fasta_and_index.{chrom}.log",
+    params:
+        window_size=SEQUENCE_WINDOW_SIZE,
+        output_base=f"{WORK_DIR}/output/hgdp_1kg.haplotypes.{{chrom}}",
+        version=VERSION,
+        freq_threshold=HGDP_1KG_MIN_EST_GNOMAD_HAPLOTYPE_AF,
+        tmp_dir=TMP_DIR,
+    shell:
+        """
+        (
+            divref create-fasta-and-index \
+                --haplotypes-table-path {input.haplotypes_ht} \
+                --gnomad-va-file {input.variant_ht} \
+                --reference-fasta {input.fasta} \
+                --window-size {params.window_size} \
+                --output-base {params.output_base} \
+                --version-str {params.version} \
+                --frequency-cutoff {params.freq_threshold} \
+                --tmp-dir {params.tmp_dir}
         ) &> {log}
         """
