@@ -51,13 +51,14 @@ properties:
       Minimum allele frequency for at least one selected population when running `divref extract-gnomad-afs`.
       Must be <= `hgdp_1kg_min_pop_af_compute_haplotypes`. There are two AF thresholds set in this workflow.
       This one is to filter the GCS-hosted Hail table of sites down to a smaller size which is written to
-      disk for downstream tasks. This step is time-intensive and if we set a relaxed threshold it can be run\
+      disk for downstream tasks. This step is time-intensive and if we set a relaxed threshold it can be run
       once and the outputs re-used for cheaper re-filtering at more stringent thresholds at the `divref
       compute-haplotypes` step.
     default: 0.001
 
   hgdp_1kg_haplotype_window_size:
     type: integer
+    minimum: 1
     description: Window size in bp for grouping variants into haplotypes.
     default: 100
 
