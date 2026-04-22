@@ -42,10 +42,8 @@ con <- dbConnect(duckdb(), read_only = TRUE, dbdir = opts$divref_duckdb)
 
 divref <- dbGetQuery(
   con,
-  sprintf(
-    "SELECT * FROM sequences WHERE contig = '%s' AND source = 'gnomAD_variant'",
-    opts$contig
-  )
+  "SELECT * FROM sequences WHERE contig = ? AND source = 'gnomAD_variant'",
+  params = list(opts$contig)
 ) %>%
   select(-c(sequence, sequence_length, sequence_id, n_variants, source, contig)) %>%
   mutate(

@@ -107,7 +107,8 @@ def extract_from_joint_41(
 
     va = va.select_globals(pops=populations)
     va = va.select(pop_freqs=hl.literal(pop_indices).map(lambda i: va.joint.freq[i]))
-    va = va.filter(hl.any(lambda x: x.AF > freq_threshold, va.pop_freqs))
+    if freq_threshold > 0:
+        va = va.filter(hl.any(lambda x: x.AF > freq_threshold, va.pop_freqs))
     va = va.key_by()
 
     return va.select("locus", "alleles", "pop_freqs")
@@ -136,7 +137,8 @@ def extract_from_hgdp_1kg_312(
 
     va = va.select_globals(pops=populations)
     va = va.select(pop_freqs=hl.literal(pop_indices).map(lambda i: va.gnomad_freq[i]))
-    va = va.filter(hl.any(lambda x: x.AF > freq_threshold, va.pop_freqs))
+    if freq_threshold > 0:
+        va = va.filter(hl.any(lambda x: x.AF > freq_threshold, va.pop_freqs))
     va = va.key_by()
 
     return va.select("locus", "alleles", "pop_freqs")
