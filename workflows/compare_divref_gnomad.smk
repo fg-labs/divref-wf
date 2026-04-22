@@ -26,7 +26,9 @@ GNOMAD_LABEL: dict[str, str] = {
 # Rules
 ####################################################################################################
 
+
 ruleorder: compare_divref_gnomad > extract_gnomad_single_afs
+
 
 rule all:
     input:
@@ -45,7 +47,7 @@ rule all:
         expand(
             f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.log",
             gnomad_version=GNOMAD_VERSIONS,
-        )
+        ),
 
 
 ####################################################################################################
