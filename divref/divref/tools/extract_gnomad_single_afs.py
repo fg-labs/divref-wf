@@ -16,6 +16,9 @@ class GnomadVersion(StrEnum):
     """Mapping of gnomAD versions to GCS sites tables."""
 
     JOINT_41 = "gs://gcp-public-data--gnomad/release/4.1/ht/joint/gnomad.joint.v4.1.sites.ht"
+    GENOMES_312 = (
+        "gs://gcp-public-data--gnomad/release/3.1.2/ht/genomes/gnomad.genomes.v3.1.2.sites.ht"
+    )
     HGDP_1KG_312 = "gs://gcp-public-data--gnomad/release/3.1.2/ht/genomes/gnomad.genomes.v3.1.2.hgdp_1kg_subset_variant_annotations.ht"
 
 
@@ -54,14 +57,21 @@ def extract_gnomad_single_afs(
     ht: hl.Table
     match gnomad_version:
         case GnomadVersion.JOINT_41:
-            ht = extract_from_joint_41(
+            ht = extract_from_gnomad_41_joint(
+                contig=contig,
+                freq_threshold=freq_threshold,
+                populations=populations,
+                reference_genome=reference_genome,
+            )
+        case GnomadVersion.GENOMES_312:
+            ht = extract_from_gnomad_312_genomes(
                 contig=contig,
                 freq_threshold=freq_threshold,
                 populations=populations,
                 reference_genome=reference_genome,
             )
         case GnomadVersion.HGDP_1KG_312:
-            ht = extract_from_hgdp_1kg_312(
+            ht = extract_from_gnomad_312_hgdp_1kg(
                 contig=contig,
                 freq_threshold=freq_threshold,
                 populations=populations,
@@ -84,7 +94,7 @@ def extract_gnomad_single_afs(
     ).export(str(out_sites_tsv))
 
 
-def extract_from_joint_41(
+def extract_from_gnomad_41_joint(
     contig: str,
     freq_threshold: float,
     populations: list[str],
@@ -114,7 +124,37 @@ def extract_from_joint_41(
     return va.select("locus", "alleles", "pop_freqs")
 
 
-def extract_from_hgdp_1kg_312(
+def extract_from_gnomad_312_genomes(
+    contig: str,
+    freq_threshold: float,
+    populations: list[str],
+    reference_genome: str,
+) -> hl.Table:
+    """Use the gnomAD 3.1.2 HGDP+1KG sites schema."""
+    va_all = hl.read_table(GnomadVersion.GENOMES_312.value)
+    interval = hl.parse_locus_interval(contig, reference_genome=reference_genome)
+    va = hl.filter_intervals(va_all, [interval])
+
+    freq_meta = va.globals.freq_meta.collect()[0]
+    map_to_index = {to_hashable_items(x): i for i, x in enumerate(freq_meta)}
+
+    pop_indices = []
+    for pop in populations:
+        idx = map_to_index.get(to_hashable_items({"group": "adj", "pop": pop}))
+        if idx is None:
+            raise ValueError(f"Population {pop!r} not found in gnomAD frequency metadata")
+        pop_indices.append(idx)
+
+    va = va.select_globals(pops=populations)
+    va = va.select(pop_freqs=hl.literal(pop_indices).map(lambda i: va.freq[i]))
+    if freq_threshold > 0:
+        va = va.filter(hl.any(lambda x: x.AF > freq_threshold, va.pop_freqs))
+    va = va.key_by()
+
+    return va.select("locus", "alleles", "pop_freqs")
+
+
+def extract_from_gnomad_312_hgdp_1kg(
     contig: str,
     freq_threshold: float,
     populations: list[str],

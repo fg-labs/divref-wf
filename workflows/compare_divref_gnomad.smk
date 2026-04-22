@@ -14,11 +14,12 @@ CONTIG: str = "chr22"
 DIVREF_DUCKDB_URL: str = (
     "https://zenodo.org/records/14802613/files/" "DivRef-v1.1.haplotypes_gnomad_merge.index.duckdb"
 )
-GNOMAD_VERSIONS: list[str] = ["joint_41", "hgdp_1kg_312"]
+GNOMAD_VERSIONS: list[str] = ["joint_41", "genomes_312", "hgdp_1kg_312"]
 
 # Maps filename wildcard → plot label used by compare_divref_gnomad.R
 GNOMAD_LABEL: dict[str, str] = {
     "joint_41": "gnomAD 4.1 joint AF",
+    "genomes_312": "gnomAD 3.1.2 genomes AF",
     "hgdp_1kg_312": "gnomAD 3.1.2 HGDP+1KG AF",
 }
 
