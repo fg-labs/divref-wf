@@ -18,7 +18,7 @@ configfile: os.path.join(workflow.basedir, "config", "config.yml")
 
 validate(config, os.path.join(workflow.basedir, "config", "config_schema.yml"))
 
-VERSION: int = config["version"]
+VERSION: str = config["version"]
 
 WORK_DIR: Path = Path(config["work_dir"])
 TMP_DIR: Path = Path(config["tmp_dir"])
