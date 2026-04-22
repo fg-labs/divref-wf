@@ -130,7 +130,7 @@ def extract_from_gnomad_312_genomes(
     populations: list[str],
     reference_genome: str,
 ) -> hl.Table:
-    """Use the gnomAD 3.1.2 HGDP+1KG sites schema."""
+    """Use the gnomAD 3.1.2 genomes sites schema."""
     va_all = hl.read_table(GnomadVersion.GENOMES_312.value)
     interval = hl.parse_locus_interval(contig, reference_genome=reference_genome)
     va = hl.filter_intervals(va_all, [interval])

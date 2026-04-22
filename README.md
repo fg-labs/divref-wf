@@ -72,7 +72,7 @@ We found that all DivRef 1.1 'gnomAD_variant' variants were present in the gnomA
 
 We further compared the allele frequencies for the 5 populations recorded in the DivRef 1.1 DuckDB index against the frequencies for those populations in the two gnomAD sets, using the Hail tables as input.
 
-- gnomAD 3.1.2 HGDP+1KG subset: within a rounding error of 5e06, for all variants.
+- gnomAD 3.1.2 HGDP+1KG subset: within a rounding error of 5e-6, for all variants.
 - gnomAD 3.1.2 genomes: 1,400 variants with an AF difference >= 0.001, all of which had lower AF in the genomes set compared to HGDP+1KG, indicating more stringent filtering in the genomes set
 - gnomAD 4.1 joint: 60,424 variants with an AF difference >= 0.001, evenly distributed both lower and higher AF
 
