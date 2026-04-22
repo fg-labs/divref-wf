@@ -103,7 +103,7 @@ divref_in_gnomad_with_af_diffs <- divref_in_gnomad %>%
     diff_nfe = nfe - gnomAD_AF_nfe,
   )
 
-divref_in_gnomad_with_af_diffs %>%
+p <- divref_in_gnomad_with_af_diffs %>%
   select(variants, diff_afr, diff_amr, diff_eas, diff_sas, diff_nfe) %>%
   pivot_longer(
     cols = c(diff_afr, diff_amr, diff_eas, diff_sas, diff_nfe),
@@ -118,7 +118,7 @@ divref_in_gnomad_with_af_diffs %>%
   ylab("Variants") +
   labs(title = paste0("DivRef 1.1 'gnomAD_variant' variants found in ", opts$gnomad_label))
 
-ggsave(paste0(opts$output_base, "_af_diffs.png"), height = 10, width = 6)
+ggsave(paste0(opts$output_base, ".af_diffs.png"), p, height = 10, width = 6)
 
 # Count: variants with large AF differences ----
 
@@ -142,7 +142,7 @@ if (nrow(divref_not_in_gnomad) == 0) {
 
 # Plot: DivRef AF distribution for variants not found in gnomAD ----
 
-divref_not_in_gnomad %>%
+p <- divref_not_in_gnomad %>%
   select(variants, gnomAD_AF_afr, gnomAD_AF_amr, gnomAD_AF_eas, gnomAD_AF_sas, gnomAD_AF_nfe) %>%
   pivot_longer(
     cols = c(gnomAD_AF_afr, gnomAD_AF_amr, gnomAD_AF_eas, gnomAD_AF_sas, gnomAD_AF_nfe),
@@ -159,10 +159,10 @@ divref_not_in_gnomad %>%
     "DivRef 1.1 'gnomAD_variant' variants not found in ", opts$gnomad_label
   ))
 
-ggsave(paste0(opts$output_base, "_not_in_gnomad_afs.png"), height = 10, width = 6)
+ggsave(paste0(opts$output_base, ".not_in_gnomad_afs.png"), p, height = 10, width = 6)
 
 # Write not-in-gnomAD variant list ----
 
 divref_not_in_gnomad %>%
   select(variants) %>%
-  write_tsv(paste0(opts$output_base, "_divref_not_in_gnomad.tsv"))
+  write_tsv(paste0(opts$output_base, ".divref_not_in_gnomad.tsv"))
