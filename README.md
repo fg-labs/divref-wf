@@ -37,3 +37,58 @@ gcloud auth application-default login
 
 [Data description](https://gnomad.broadinstitute.org/news/2021-10-gnomad-v3-1-2-minor-release/)
 
+## Analysis
+
+### Additional Environment Requirements
+
+To install R packages not available as conda-forge builds for all platforms (duckdb, duckplyr), run
+
+```bash
+pixi run -e analysis setup-r-packages
+```
+
+### Compare DivRef 1.1 against different gnomAD releases
+
+1. Download the DivRef 1.1 index file.
+
+```bash
+mkdir -p data/analysis/input
+wget -O data/analysis/input/DivRef-v1.1.haplotypes_gnomad_merge.index.duckdb \
+  https://zenodo.org/records/14802613/files/DivRef-v1.1.haplotypes_gnomad_merge.index.duckdb
+```
+
+2. Extract locus, alleles, and default DivRef population AFs from the gnomAD 4.1 joint (exomes and genomes) call set and the gnomAD 3.1.2 HGDP+1KG subset call set. Restrict to `chr22`.
+
+```bash
+pixi run divref extract-gnomad-single-afs \
+  --contig chr22 \
+  --gnomad-version JOINT_41 \
+  --out-sites-hail-table data/analysis/input/chr22.joint_41.ht \
+  --out-sites-tsv data/analysis/input/chr22.joint_41.tsv
+
+pixi run divref extract-gnomad-single-afs \
+  --contig chr22 \
+  --gnomad-version HGDP_1KG_312 \
+  --out-sites-hail-table data/analysis/input/chr22.hgdp_1kg_312.ht \
+  --out-sites-tsv data/analysis/input/chr22.hgdp_1kg_312.ts
+```
+
+3. Compare DivRef 1.1 chr22 gnomAD single variant sites to each of the two gnomAD releases.
+
+```bash
+mkdir -p data/analysis/compare_divref_gnomad
+
+pixi run Rscript scripts/compare_divref_gnomad.R \
+  --contig chr22 \
+  --divref_duckdb data/analysis/input/DivRef-v1.1.haplotypes_gnomad_merge.index.duckdb \
+  --gnomad_tsv data/analysis/input/chr22.joint_41.tsv \
+  --gnomad_label "gnomAD 4.1 joint AF" \
+  --output_base data/analysis/compare_divref_gnomad/chr22.joint_41
+
+pixi run Rscript scripts/compare_divref_gnomad.R \
+  --contig chr22 \
+  --divref_duckdb data/analysis/input/DivRef-v1.1.haplotypes_gnomad_merge.index.duckdb \
+  --gnomad_tsv data/analysis/input/chr22.hgdp_1kg_312.tsv \
+  --gnomad_label "gnomAD 3.1.2 HGDP+1KG AF" \
+  --output_base data/analysis/compare_divref_gnomad/chr22.hgdp_1kg_312
+```
