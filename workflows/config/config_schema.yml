@@ -5,6 +5,16 @@ type: object
 additionalProperties: false
 
 properties:
+  reference_genome_uri:
+    type: string
+    description: GCS URI for the reference genome.
+    default: gs://hail-common/references/Homo_sapiens_assembly38.fasta.gz
+
+  reference_genome_base_name:
+    type: string
+    description: Base name for the reference genome.
+    default: Homo_sapiens_assembly38
+
   chromosomes:
     type: array
     items:
@@ -69,7 +79,37 @@ properties:
     description: Minimum allele frequency for at least one selected population when running `divref compute-haplotypes`.
     default: 0.005
 
+  hgdp_1kg_min_estimated_gnomad_haplotype_af:
+    type: number
+    minimum: 0
+    maximum: 1
+    description: |
+      Minimum estimated gnomAD haplotype allele frequency for inclusion in output. Used by
+      `divref create-fasta-and-index`.
+    default: 0.005
+
+  sequence_window_size:
+    type: integer
+    description: |
+      Window size used when generating haplotypes; used as the context size when constructing
+      sequence strings and stored in the index.
+    minimum: 1
+    default: 25
+
+  version:
+    type: string
+    description: Version identifier for output resource.
+    example: 1.0
+
   work_dir:
     type: string
     description: Path to the working directory for intermediate files.
     default: data/work
+
+  tmp_dir:
+    type: string
+    description: Path to the temporary files directory.
+    default: /tmp
+
+required:
+  - version

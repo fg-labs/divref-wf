@@ -9,7 +9,6 @@ import duckdb
 import hail as hl
 import polars
 from fgpyo.io import assert_directory_exists
-from fgpyo.io import assert_fasta_indexed
 from fgpyo.io import assert_path_is_readable
 from fgpyo.io import assert_path_is_writable
 
@@ -78,13 +77,12 @@ def build_haplotype_table(
         ),
     )
     ht = ht.filter(ht.estimated_gnomad_AF >= frequency_cutoff)
-    ht = ht.rename({"max_empirical_AN": "max_empirical_AC"})
     ht = split_haplotypes(ht, window_size)
     ht = ht.key_by("haplotype").distinct().key_by().drop("haplotype")
     ht = ht.annotate(
         source="HGDP_haplotype",
         all_pop_freqs=ht.all_pop_freqs.map(
-            lambda x: hl.struct(pop=x.pop, empirical_AC=x.empirical_AN, empirical_AF=x.empirical_AF)
+            lambda x: hl.struct(pop=x.pop, empirical_AC=x.empirical_AC, empirical_AF=x.empirical_AF)
         ),
     )
     logger.info(
@@ -287,8 +285,8 @@ def create_fasta_and_index(
     assert_directory_exists(haplotypes_table_path)
     assert_directory_exists(gnomad_va_file)
     assert_path_is_readable(reference_fasta)
-    assert_fasta_indexed(reference_fasta)
-    assert_path_is_writable(tmp_dir)
+    assert_path_is_readable(reference_fasta.with_suffix(".fai"))
+    assert_directory_exists(tmp_dir)
     assert_path_is_writable(output_base)
 
     hl.init(tmp_dir=str(tmp_dir))
