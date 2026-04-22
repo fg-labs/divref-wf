@@ -79,7 +79,6 @@ rule download_divref_index:
 ####################################################################################################
 rule extract_gnomad_single_afs:
     output:
-        ht=directory(f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.ht"),
         tsv=f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.tsv",
     log:
         f"logs/compare_divref_gnomad/extract_gnomad_single_afs.{{gnomad_version}}.log",
@@ -92,7 +91,6 @@ rule extract_gnomad_single_afs:
             divref extract-gnomad-single-afs \
                 --contig {params.contig} \
                 --gnomad-version {params.gnomad_version} \
-                --out-sites-hail-table {output.ht} \
                 --out-sites-tsv {output.tsv}
         ) &> {log}
         """
