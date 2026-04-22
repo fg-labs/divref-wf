@@ -30,6 +30,7 @@ uv run --directory divref mypy divref/             # Type-check only
 pixi run fix-and-check-all   # Fix and check toolkit + Snakemake linting
 pixi run lint --check        # Validate Snakemake files with snakefmt
 pixi run download            # Run the Snakemake download workflow
+pixi run setup-gcs           # Download GCS connector JAR (required once for Hail on GCS)
 ```
 
 ## Architecture
@@ -40,13 +41,17 @@ pixi run download            # Run the Snakemake download workflow
 divref/                    # Python package (uv-managed)
   divref/
     main.py                # CLI entry point; registers tools in _tools list
-    haplotype.py           # Shared Hail utilities (HailPath alias, haplotype helpers)
+    alias.py               # HailPath type alias (str; accepts local, gs://, hdfs://)
+    defaults.py            # Package-wide constants: POPULATIONS, REFERENCE_GENOME, freq thresholds
+    hail.py                # Hail initialization with GCS connector setup
+    haplotype.py           # Shared Hail utilities for haplotype sequence/windowing
     tools/                 # One module per CLI subcommand
   tests/                   # pytest tests
   pyproject.toml           # Package deps, ruff/mypy/pytest config
 workflows/                 # Snakemake workflows
-  download.smk             # Template download workflow
-  config/config.yml        # Workflow configuration
+  generate_divref.smk      # Main workflow (extract → haplotypes → reference download)
+  create_test_data.smk     # Generates gnomAD subset for unit tests
+  config/config.yml        # Workflow configuration (chromosomes, populations, paths)
 pixi.toml                  # Workspace config (snakemake + hail environments)
 ```
 
@@ -64,23 +69,33 @@ divref <tool-name> --arg value   # Invokes the registered tool
 ### Tool Pipeline (execution order)
 
 The tools implement a data pipeline:
-1. `create_gnomad_sites_vcf` → gnomAD sites VCF
-2. `extract_gnomad_afs` → allele frequencies
-3. `compute_haplotypes` → groups variants into haplotype windows using Hail
-4. `compute_haplotype_statistics` → haplotype distributions
-5. `compute_variation_ratios` → variant pattern statistics
-6. `create_fasta_and_index` → outputs FASTA + DuckDB index (final deliverable)
-7. `remap_divref` → maps haplotype coordinates to reference genome
+1. `extract_gnomad_afs` / `extract_gnomad_single_afs` → per-population allele frequency Hail table
+2. `extract_sample_metadata` → simplified sample→population mapping table
+3. `create_gnomad_sites_vcf` → VCF of variants above AF threshold (uses output of step 1)
+4. `compute_haplotypes` → groups phased variants into haplotype windows using Hail
+5. `compute_haplotype_statistics` → haplotype count distributions
+6. `compute_variation_ratios` → per-sample variant counts at multiple freq thresholds
+7. `create_fasta_and_index` → FASTA sequences + DuckDB index (final deliverable)
+8. `remap_divref` → maps haplotype coordinates back to reference genome (post-CALITAS step)
 
-### Key Shared Module: `haplotype.py`
+`extract_gnomad_single_afs` is an alternative to `extract_gnomad_afs` supporting both gnomAD v4.1 (JOINT) and v3.1.2 (HGDP+1KG) table schemas.
 
-- `HailPath = str` — type alias for paths accepted by Hail (local, `gs://`, `hdfs://`)
-- `get_haplo_sequence(context_size, variants)` — builds haplotype sequence strings with flanking reference context
-- `split_haplotypes(ht, window_size)` — splits multi-variant haplotypes at gaps > `window_size` bases
+### Key Shared Modules
+
+**`haplotype.py`**
+- `get_haplo_sequence(context_size, variants)` — builds haplotype sequence strings with flanking reference context; handles SNPs, insertions, deletions
+- `split_haplotypes(ht, window_size)` — splits multi-variant haplotypes at gaps ≥ `window_size` bases; discards sub-haplotypes with <2 variants
+- `variant_distance(v1, v2)` — reference bases between two variants (accounts for indel length)
+
+**`compute_haplotypes.py` two-window strategy**: To avoid systematic edge artefacts, the tool runs two overlapping window passes (offset by `window_size / 2`) and unions the results. Intermediate `.1.ht` / `.2.ht` files are cleaned up after the merge.
+
+**`hail.py`**: `hail_init(gcs_credentials_path)` — sets `GOOGLE_APPLICATION_CREDENTIALS`, verifies GCS connector JAR (installed via `pixi run setup-gcs`), then calls `hl.init()` with Spark GCS config.
+
+**`defaults.py`**: `POPULATIONS`, `REFERENCE_GENOME`, `VARIATION_RATIO_FREQUENCY_THRESHOLDS` — defaults shared across tools.
 
 ### Data Models (`remap_divref.py`)
 
-Pydantic `frozen=True` models: `Variant`, `ReferenceMapping`, `Haplotype` — used for type-safe coordinate remapping.
+Pydantic `frozen=True` models: `Variant`, `ReferenceMapping`, `Haplotype` — used for type-safe coordinate remapping. `Haplotype` uses field aliases to match mixedCase column names in the DuckDB index created by `create_fasta_and_index`.
 
 ## Git Workflow
 

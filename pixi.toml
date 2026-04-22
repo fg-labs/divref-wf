@@ -5,21 +5,20 @@ name = "fg-labs-divref-wf"
 platforms = ["osx-arm64", "osx-64", "linux-64"]
 version = "0.1.0"
 
-[feature.snakemake.dependencies]
+[dependencies]
 python = ">=3.12.8,<3.13"
-snakemake-minimal = ">=8.28.0,<9.0"
-snakefmt = ">=1.0.0,<2"
-samtools = ">=1.23.1,<2"
-pyarrow = ">=23.0.1,<24"
+openjdk = ">=11,<17"
 
 [pypi-dependencies]
 divref = { path = "./divref", editable = true }
 
-[feature.hail.dependencies]
-openjdk = ">=11,<17"
+[feature.workflow.dependencies]
+snakemake-minimal = ">=8.28.0,<9.0"
+snakefmt = ">=1.0.0,<2"
+bcftools = ">=1.23.1,<2"
 
 [environments]
-default = { features = ["snakemake", "hail"] }
+default = { features = ["workflow"] }
 
 [tasks]
 check-toolkit = "uv run --directory divref poe check-all"
@@ -36,6 +35,10 @@ fix-and-check-all = [
     { task = "fix-and-check-toolkit" },
     { task = "check-lock" },
 ]
+
+setup-r-packages = """
+Rscript -e "install.packages(c('duckdb', 'duckplyr'), repos = 'https://cloud.r-project.org')"
+"""
 
 setup-gcs = """
 python -c "
@@ -63,7 +66,3 @@ else:
 """
 
 lint = "snakefmt --line-length 100 workflows/*.smk"
-download = "snakemake -j1 -s workflows/download.smk"
-
-[dependencies]
-bcftools = ">=1.23.1,<2"
