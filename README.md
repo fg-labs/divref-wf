@@ -49,46 +49,23 @@ pixi run -e analysis setup-r-packages
 
 ### Compare DivRef 1.1 against different gnomAD releases
 
-1. Download the DivRef 1.1 index file.
+[DivRef 1.1](https://zenodo.org/records/14802613) states that:
+
+> DivRef is constructed by computing empirical phased haplotypes within 25 BPs over 0.5% allele frequency from the Human Genome Diversity Panel (HGDP) using the phased Hail dataset provided by the gnomAD team at the Broad Institute, merged with single variants over 0.5% AF from the gnomAD v4.1.0 summary release.
+
+Some gnomAD v4.1.0 variants that we expected to see represented in DivRef 1.1 were not.
+We checked all 'gnomAD_variant' variants on chr22 from DivRef 1.1 against the gnomAD 4.1 joint (exomes and genomes) variants and the gnomAD 3.1.2 HGDP+1KG subset variants.
+The latter is the source used for the haplotypes present in DivRef.
 
 ```bash
-mkdir -p data/analysis/input
-wget -O data/analysis/input/DivRef-v1.1.haplotypes_gnomad_merge.index.duckdb \
-  https://zenodo.org/records/14802613/files/DivRef-v1.1.haplotypes_gnomad_merge.index.duckdb
+pixi run -e analysis snakemake -j1 -s workflows/compare_divref_gnomad.smk
 ```
 
-2. Extract locus, alleles, and default DivRef population AFs from the gnomAD 4.1 joint (exomes and genomes) call set and the gnomAD 3.1.2 HGDP+1KG subset call set. Restrict to `chr22`.
+We found that all DivRef 1.1 variants were present in the gnomAD 3.1.2 HGDP+1KG subset, while 16 were missing from the gnomAD 4.1 joint set.
+We further compared the allele frequencies for the 5 populations recorded in the DivRef 1.1 DuckDB index against the frequencies for those populations in the two gnomAD sets, using the Hail tables as input.
 
-```bash
-pixi run divref extract-gnomad-single-afs \
-  --contig chr22 \
-  --gnomad-version JOINT_41 \
-  --out-sites-hail-table data/analysis/input/chr22.joint_41.ht \
-  --out-sites-tsv data/analysis/input/chr22.joint_41.tsv
+The allele frequencies between DivRef 1.1 and the gnomAD 3.1.2 HGDP+1KG subset were very close, within a rounding error of 5e06, for all variants.
 
-pixi run divref extract-gnomad-single-afs \
-  --contig chr22 \
-  --gnomad-version HGDP_1KG_312 \
-  --out-sites-hail-table data/analysis/input/chr22.hgdp_1kg_312.ht \
-  --out-sites-tsv data/analysis/input/chr22.hgdp_1kg_312.ts
-```
+The allele frequencies between DivRef 1.1 and gnomAD 4.1 joint set were significantly different. 60,424 variants were found with an allele frequence difference >= 0.001.
 
-3. Compare DivRef 1.1 chr22 gnomAD single variant sites to each of the two gnomAD releases.
-
-```bash
-mkdir -p data/analysis/compare_divref_gnomad
-
-pixi run Rscript scripts/compare_divref_gnomad.R \
-  --contig chr22 \
-  --divref_duckdb data/analysis/input/DivRef-v1.1.haplotypes_gnomad_merge.index.duckdb \
-  --gnomad_tsv data/analysis/input/chr22.joint_41.tsv \
-  --gnomad_label "gnomAD 4.1 joint AF" \
-  --output_base data/analysis/compare_divref_gnomad/chr22.joint_41
-
-pixi run Rscript scripts/compare_divref_gnomad.R \
-  --contig chr22 \
-  --divref_duckdb data/analysis/input/DivRef-v1.1.haplotypes_gnomad_merge.index.duckdb \
-  --gnomad_tsv data/analysis/input/chr22.hgdp_1kg_312.tsv \
-  --gnomad_label "gnomAD 3.1.2 HGDP+1KG AF" \
-  --output_base data/analysis/compare_divref_gnomad/chr22.hgdp_1kg_312
-```
+We concluded that the DivRef 1.1 documentation was incorrect, and that the actual source of the gnomAD variants in the dataset was the gnomAD 3.1.2 HGDP+1KG subset, the same as for the haplotypes.
