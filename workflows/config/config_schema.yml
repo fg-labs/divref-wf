@@ -76,7 +76,9 @@ properties:
     type: number
     minimum: 0
     maximum: 1
-    description: Minimum allele frequency for at least one selected population when running `divref compute-haplotypes`.
+    description: |
+      Minimum allele frequency for a variant in at least one selected population when running 
+      `divref compute-haplotypes`.
     default: 0.005
 
   hgdp_1kg_min_estimated_gnomad_haplotype_af:

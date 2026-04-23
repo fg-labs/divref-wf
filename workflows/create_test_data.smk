@@ -156,7 +156,8 @@ rule compute_haplotypes:
                 --gnomad-va-file {input.variant_ht} \
                 --gnomad-sa-file {input.sample_ht} \
                 --window-size {params.window_size} \
-                --freq-threshold {params.freq_threshold} \
+                --variant-freq-threshold {params.freq_threshold} \
+                --haplotype-freq-threshold {params.freq_threshold} \
                 --output-base {params.output_base}
             
             # remove intermediate files
