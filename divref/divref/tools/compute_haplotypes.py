@@ -36,7 +36,8 @@ def _get_haplotypes(
         idx: Index of this windowing pass (1 or 2), used in the checkpoint filename.
         output_base: Base path for output; checkpoint written to {output_base}.{idx}.ht.
         pop_ints: Mapping from population code to integer index.
-        haplotype_freq_threshold: Minimum haplotype frequency to retain.
+        haplotype_freq_threshold: Minimum estimated gnomAD allele frequency for a haplotype to be
+            retained.
 
     Returns:
         Hail table of haplotypes with empirical frequency summaries.
@@ -218,19 +219,10 @@ def _get_haplotypes(
     )
 
     # Filter out any haplotypes with minimum variant frequency <= 0
-    count_orig: int = hte.count()
-    logger.info(f"{count_orig} haplotypes identified")
-
     hte = hte.filter(hte.min_variant_frequency > 0)
-    count_with_nonzero_freq: int = hte.count()
-    if count_with_nonzero_freq < count_orig:
-        logger.warning(
-            f"Removed {count_orig - count_with_nonzero_freq} haplotypes with "
-            "min_variant_frequency <= 0",
-        )
 
     # Estimate the fraction of phased
-    fraction_phased: float = hte.max_empirical_AF / hte.min_variant_frequency
+    fraction_phased = hte.max_empirical_AF / hte.min_variant_frequency
     hte = hte.annotate(
         fraction_phased=fraction_phased,
         estimated_gnomad_AF=hl.min(
