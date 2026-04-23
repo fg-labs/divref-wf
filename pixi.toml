@@ -45,7 +45,7 @@ fix-and-check-all = [
 ]
 
 setup-r-packages = """
-Rscript -e "install.packages(c('duckdb', 'duckplyr'), repos = 'https://cloud.r-project.org')"
+Rscript -e "install.packages(c('duckdb', 'duckplyr', 'eulerr'), repos = 'https://cloud.r-project.org')"
 """
 
 setup-gcs = """

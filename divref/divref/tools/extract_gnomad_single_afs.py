@@ -53,14 +53,38 @@ _GNOMAD_SCHEMA: dict[GnomadVersion, _GnomadSchema] = {
 }
 
 
+def _apply_filters(va: hl.Table, gnomad_version: GnomadVersion) -> hl.Table:
+    """
+    Apply gnomAD variant filters, keeping only variants that pass all filters.
+
+    For gnomAD 4.1 joint, exome and genome filter sets are maintained separately and are
+    unioned after filtering. For gnomAD 3.1.2 tables, a single filter set is used.
+    Entries with missing filter sets are treated as passing.
+
+    Args:
+        va: gnomAD sites Hail table filtered to a single contig.
+        gnomad_version: gnomAD version determining which filter fields to apply.
+
+    Returns:
+        Filtered Hail table.
+    """
+    if gnomad_version is GnomadVersion.JOINT_41:
+        va_exome = va.filter(hl.coalesce(hl.len(va.exomes.filters) == 0, True))
+        va_genome = va.filter(hl.coalesce(hl.len(va.genomes.filters) == 0, True))
+        return va_exome.union(va_genome).distinct()
+    else:
+        return va.filter(hl.coalesce(hl.len(va.filters) == 0, True))
+
+
 def extract_gnomad_single_afs(
     *,
     gnomad_version: GnomadVersion,
     contig: str,
     freq_threshold: float = 0,
+    no_apply_filters: bool = False,
     populations: list[str] = defaults.POPULATIONS,
     reference_genome: str = defaults.REFERENCE_GENOME,
-    out_sites_hail_table: Path | None,
+    out_sites_hail_table: Path | None = None,
     out_sites_tsv: Path | None = None,
     gcs_credentials_path: Path = Path("~/.config/gcloud/application_default_credentials.json"),
 ) -> None:
@@ -79,6 +103,7 @@ def extract_gnomad_single_afs(
         contig: Contig to extract sites.
         freq_threshold: Minimum allele frequency in any population to retain a variant. Defaults 0,
             all variants returned.
+        no_apply_filters: If set, don't apply any of the variant filters (e.g. VQSR, AC0)
         populations: List of population codes to extract frequencies for.
         reference_genome: Reference genome to use. Defaults to "GRCh38".
         out_sites_hail_table: Output path for the Hail table. Optional.
@@ -110,11 +135,14 @@ def extract_gnomad_single_afs(
             raise ValueError(f"Population {pop!r} not found in gnomAD frequency metadata")
         pop_indices.append(idx)
 
-    row_freq = operator.attrgetter(schema.row_freq_field)(va)
+    if not no_apply_filters:
+        va = _apply_filters(va, gnomad_version)
+
     va = va.select_globals(pops=populations)
+    row_freq = operator.attrgetter(schema.row_freq_field)(va)
     va = va.select(pop_freqs=hl.literal(pop_indices).map(lambda i: row_freq[i]))
     if freq_threshold > 0:
-        va = va.filter(hl.any(lambda x: x.AF > freq_threshold, va.pop_freqs))
+        va = va.filter(hl.any(lambda x: x.AF >= freq_threshold, va.pop_freqs))
     va = va.key_by()
     va = va.select("locus", "alleles", "pop_freqs")
 
