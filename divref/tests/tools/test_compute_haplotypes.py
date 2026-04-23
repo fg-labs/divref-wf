@@ -26,7 +26,8 @@ def test_compute_haplotypes(
             gnomad_va_file=in_sites,
             gnomad_sa_file=in_samples,
             window_size=5000,
-            freq_threshold=0.005,
+            variant_freq_threshold=0.005,
+            haplotype_freq_threshold=0.005,
             output_base=output_base,
             temp_dir=tmp_path / "hail_tmp",
         )
@@ -34,7 +35,7 @@ def test_compute_haplotypes(
     # --- assert ---
     result = hl.read_table(f"{output_base}.ht")
     result_count = result.count()
-    assert result_count == 295
+    assert result_count == 33
 
     results: list[hl.Struct] = result.collect()
 

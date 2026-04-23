@@ -20,6 +20,7 @@ def _get_haplotypes(
     idx: int,
     output_base: Path,
     pop_ints: dict[str, int],
+    haplotype_freq_threshold: float,
 ) -> hl.Table:
     """
     Group variants into haplotypes within genomic windows and compute empirical frequencies.
@@ -35,6 +36,7 @@ def _get_haplotypes(
         idx: Index of this windowing pass (1 or 2), used in the checkpoint filename.
         output_base: Base path for output; checkpoint written to {output_base}.{idx}.ht.
         pop_ints: Mapping from population code to integer index.
+        haplotype_freq_threshold: Minimum haplotype frequency to retain.
 
     Returns:
         Hail table of haplotypes with empirical frequency summaries.
@@ -215,6 +217,33 @@ def _get_haplotypes(
         )[0]
     )
 
+    # Filter out any haplotypes with minimum variant frequency <= 0
+    count_orig: int = hte.count()
+    logger.info(f"{count_orig} haplotypes identified")
+
+    hte = hte.filter(hte.min_variant_frequency > 0)
+    count_with_nonzero_freq: int = hte.count()
+    if count_with_nonzero_freq < count_orig:
+        logger.warning(
+            f"Removed {count_orig - count_with_nonzero_freq} haplotypes with "
+            "min_variant_frequency <= 0",
+        )
+
+    # Estimate the fraction of phased
+    fraction_phased: float = hte.max_empirical_AF / hte.min_variant_frequency
+    hte = hte.annotate(
+        fraction_phased=fraction_phased,
+        estimated_gnomad_AF=hl.min(
+            hte.gnomad_freqs.map(lambda x: x[hte.max_pop].AF * fraction_phased)
+        ),
+    )
+    hte = hte.filter(hte.estimated_gnomad_AF >= haplotype_freq_threshold)
+    count_after_freq_filter: int = hte.count()
+    logger.info(
+        f"{count_after_freq_filter} haplotypes remaining with "
+        f"estimated_gnomad_AF >= {haplotype_freq_threshold}"
+    )
+
     logger.info("Writing %s.%s.ht ...", output_base, idx)
     return hte.checkpoint(f"{str(output_base)}.{idx}.ht", overwrite=True)
 
@@ -225,7 +254,8 @@ def compute_haplotypes(
     gnomad_va_file: Path,
     gnomad_sa_file: Path,
     window_size: int,
-    freq_threshold: float,
+    variant_freq_threshold: float,
+    haplotype_freq_threshold: float,
     output_base: Path,
     temp_dir: Path = Path("/tmp"),
 ) -> None:
@@ -243,7 +273,9 @@ def compute_haplotypes(
         gnomad_sa_file: Path to the gnomAD sample metadata Hail table
             (from extract_sample_metadata).
         window_size: Base window size in bp for grouping variants into haplotypes.
-        freq_threshold: Minimum gnomAD population allele frequency to retain a variant.
+        variant_freq_threshold: Minimum gnomAD population allele frequency to retain a variant.
+        haplotype_freq_threshold: Minimum estimated gnomAD allele frequency for the haplotype to
+            be retained.
         output_base: Base output path; writes {output_base}.1.ht, {output_base}.2.ht,
             and the final {output_base}.ht.
         temp_dir: Local directory for Hail temporary files.
@@ -259,7 +291,9 @@ def compute_haplotypes(
 
     gnomad_sa = hl.read_table(str(gnomad_sa_file))
     gnomad_va = hl.read_table(str(gnomad_va_file))
-    gnomad_va = gnomad_va.filter(hl.max(gnomad_va.pop_freqs.map(lambda x: x.AF)) >= freq_threshold)
+    gnomad_va = gnomad_va.filter(
+        hl.max(gnomad_va.pop_freqs.map(lambda x: x.AF)) >= variant_freq_threshold
+    )
 
     mt = hl.import_vcf(
         str(vcfs_path),
@@ -276,7 +310,7 @@ def compute_haplotypes(
     mt = mt.annotate_cols(pop_int=hl.literal(pop_ints).get(gnomad_sa[mt.col_key].pop))
     mt = mt.filter_cols(hl.is_defined(mt.pop_int))
     mt = mt.add_row_index().add_col_index()
-    mt = mt.filter_entries(mt.freq[mt.pop_int].AF >= freq_threshold)
+    mt = mt.filter_entries(mt.freq[mt.pop_int].AF >= variant_freq_threshold)
 
     mt = mt.annotate_rows(
         pops_and_ids_left=hl.agg.filter(
@@ -296,18 +330,20 @@ def compute_haplotypes(
     )
 
     window1 = _get_haplotypes(
-        ht,
-        lambda locus: locus - (locus.position % window_size),
-        1,
-        output_base,
-        pop_ints,
+        ht=ht,
+        windower_f=lambda locus: locus - (locus.position % window_size),
+        idx=1,
+        output_base=output_base,
+        pop_ints=pop_ints,
+        haplotype_freq_threshold=haplotype_freq_threshold,
     )
     window2 = _get_haplotypes(
-        ht,
-        lambda locus: locus - ((locus.position + window_size // 2) % window_size),
-        2,
-        output_base,
-        pop_ints,
+        ht=ht,
+        windower_f=lambda locus: locus - ((locus.position + window_size // 2) % window_size),
+        idx=2,
+        output_base=output_base,
+        pop_ints=pop_ints,
+        haplotype_freq_threshold=haplotype_freq_threshold,
     )
 
     htu = window1.union(window2)
