@@ -71,7 +71,7 @@ def _apply_filters(va: hl.Table, gnomad_version: GnomadVersion) -> hl.Table:
     if gnomad_version is GnomadVersion.JOINT_41:
         va_exome = va.filter(hl.coalesce(hl.len(va.exomes.filters) == 0, True))
         va_genome = va.filter(hl.coalesce(hl.len(va.genomes.filters) == 0, True))
-        return va_exome.union(va_genome)
+        return va_exome.union(va_genome).distinct()
     else:
         return va.filter(hl.coalesce(hl.len(va.filters) == 0, True))
 
