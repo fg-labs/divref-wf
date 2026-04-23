@@ -25,6 +25,15 @@ GNOMAD_LABEL: dict[str, str] = {
     "hgdp_1kg_312": "gnomAD 3.1.2 HGDP+1KG AF",
 }
 
+OUT_FILE_EXTS: list[str] = [
+    ".af_diffs.png",
+    ".af_diffs_all.png",
+    ".venn.png",
+    ".not_in_gnomad_afs.png",
+    ".divref_not_in_gnomad.tsv",
+    ".log",
+]
+
 ####################################################################################################
 # Rules
 ####################################################################################################
@@ -36,24 +45,9 @@ ruleorder: compare_divref_gnomad > extract_gnomad_single_afs
 rule all:
     input:
         expand(
-            f"{OUTPUT_DIR}/{COMPARISON_NAME}/{CONTIG}.{{gnomad_version}}.af_diffs.png",
+            f"{OUTPUT_DIR}/{COMPARISON_NAME}/{CONTIG}.{{gnomad_version}}{{ext}}",
             gnomad_version=GNOMAD_VERSIONS,
-        ),
-        expand(
-            f"{OUTPUT_DIR}/{COMPARISON_NAME}/{CONTIG}.{{gnomad_version}}.af_diffs_all.png",
-            gnomad_version=GNOMAD_VERSIONS,
-        ),
-        expand(
-            f"{OUTPUT_DIR}/{COMPARISON_NAME}/{CONTIG}.{{gnomad_version}}.not_in_gnomad_afs.png",
-            gnomad_version=GNOMAD_VERSIONS,
-        ),
-        expand(
-            f"{OUTPUT_DIR}/{COMPARISON_NAME}/{CONTIG}.{{gnomad_version}}.divref_not_in_gnomad.tsv",
-            gnomad_version=GNOMAD_VERSIONS,
-        ),
-        expand(
-            f"{OUTPUT_DIR}/{COMPARISON_NAME}/{CONTIG}.{{gnomad_version}}.log",
-            gnomad_version=GNOMAD_VERSIONS,
+            ext=OUT_FILE_EXTS,
         ),
 
 
@@ -112,6 +106,7 @@ rule compare_divref_gnomad:
     output:
         af_diffs_png=f"{OUTPUT_DIR}/{COMPARISON_NAME}/{CONTIG}.{{gnomad_version}}.af_diffs.png",
         af_diffs_all_png=f"{OUTPUT_DIR}/{COMPARISON_NAME}/{CONTIG}.{{gnomad_version}}.af_diffs_all.png",
+        venn_png=f"{OUTPUT_DIR}/{COMPARISON_NAME}/{CONTIG}.{{gnomad_version}}.venn.png",
         not_in_gnomad_png=f"{OUTPUT_DIR}/{COMPARISON_NAME}/{CONTIG}.{{gnomad_version}}.not_in_gnomad_afs.png",
         not_in_gnomad_tsv=f"{OUTPUT_DIR}/{COMPARISON_NAME}/{CONTIG}.{{gnomad_version}}.divref_not_in_gnomad.tsv",
     log:

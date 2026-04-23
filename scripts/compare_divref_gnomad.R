@@ -3,6 +3,7 @@
 suppressPackageStartupMessages({
   library(duckdb)
   library(duckplyr)
+  library(eulerr)
   library(logger)
   library(optparse)
   library(tidyverse)
@@ -89,6 +90,24 @@ divref_not_in_gnomad <- divref_merged_with_gnomad %>%
 
 log_info(nrow(divref_in_gnomad), " DivRef variants found in gnomAD")
 log_info(nrow(divref_not_in_gnomad), " DivRef variants not found in gnomAD")
+
+# Plot: Venn diagram of DivRef vs gnomAD variant overlap ----
+
+n_both <- nrow(divref_in_gnomad)
+n_divref_only <- nrow(divref_not_in_gnomad)
+n_gnomad_only <- nrow(gnomad) - n_both
+
+venn_counts <- c(n_divref_only, n_gnomad_only, n_both)
+names(venn_counts) <- c("DivRef 1.1", opts$gnomad_label, paste0("DivRef 1.1&", opts$gnomad_label))
+fit <- euler(venn_counts)
+
+png(paste0(opts$output_base, ".venn.png"), height = 600, width = 600)
+g <- plot(fit, quantities = TRUE)
+grid::grid.newpage()
+grid::pushViewport(grid::viewport(width = 0.8, height = 0.8))
+grid::grid.draw(g)
+grid::popViewport()
+dev.off()
 
 # Plot: AF differences for variants found in gnomAD ----
 
