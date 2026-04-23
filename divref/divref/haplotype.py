@@ -158,3 +158,31 @@ def split_haplotypes(ht: hl.Table, window_size: int) -> hl.Table:
         gnomad_freqs=ht.haplotype_indices.map(lambda i: ht.gnomad_freqs[i]),
     )
     return ht.drop("haplotype_indices")
+
+
+def haplo_coordinates(
+    window_size: int,
+    variants: hl.Expression,
+) -> hl.Expression:
+    """
+    Compute the 0-based half-open reference genome coordinates of a haplotype sequence window.
+
+    The window spans from `window_size` bases before the first variant to `window_size` bases
+    after the end of the last variant's reference allele — matching the flanking context added
+    by get_haplo_sequence.
+
+    Args:
+        window_size: Number of flanking reference bases on each side (same value passed to
+            get_haplo_sequence).
+        variants: Hail array expression of variant structs with locus and alleles fields.
+
+    Returns:
+        Hail struct expression with int32 fields `start` (inclusive) and `end` (exclusive).
+    """
+    sorted_variants = hl.sorted(variants, key=lambda x: x.locus.position)
+    min_variant = sorted_variants[0]
+    max_variant = sorted_variants[-1]
+    return hl.struct(
+        start=min_variant.locus.position - window_size,
+        end=max_variant.locus.position + hl.len(max_variant.alleles[0]) + window_size,
+    )
