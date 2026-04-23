@@ -14,11 +14,12 @@ CONTIG: str = "chr22"
 DIVREF_DUCKDB_URL: str = (
     "https://zenodo.org/records/14802613/files/" "DivRef-v1.1.haplotypes_gnomad_merge.index.duckdb"
 )
-GNOMAD_VERSIONS: list[str] = ["joint_41", "hgdp_1kg_312"]
+GNOMAD_VERSIONS: list[str] = ["joint_41", "genomes_312", "hgdp_1kg_312"]
 
 # Maps filename wildcard → plot label used by compare_divref_gnomad.R
 GNOMAD_LABEL: dict[str, str] = {
     "joint_41": "gnomAD 4.1 joint AF",
+    "genomes_312": "gnomAD 3.1.2 genomes AF",
     "hgdp_1kg_312": "gnomAD 3.1.2 HGDP+1KG AF",
 }
 
@@ -34,6 +35,10 @@ rule all:
     input:
         expand(
             f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.af_diffs.png",
+            gnomad_version=GNOMAD_VERSIONS,
+        ),
+        expand(
+            f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.af_diffs_all.png",
             gnomad_version=GNOMAD_VERSIONS,
         ),
         expand(
@@ -74,7 +79,6 @@ rule download_divref_index:
 ####################################################################################################
 rule extract_gnomad_single_afs:
     output:
-        ht=directory(f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.ht"),
         tsv=f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.tsv",
     log:
         f"logs/compare_divref_gnomad/extract_gnomad_single_afs.{{gnomad_version}}.log",
@@ -87,7 +91,6 @@ rule extract_gnomad_single_afs:
             divref extract-gnomad-single-afs \
                 --contig {params.contig} \
                 --gnomad-version {params.gnomad_version} \
-                --out-sites-hail-table {output.ht} \
                 --out-sites-tsv {output.tsv}
         ) &> {log}
         """
@@ -104,6 +107,7 @@ rule compare_divref_gnomad:
         tsv=f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.tsv",
     output:
         af_diffs_png=f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.af_diffs.png",
+        af_diffs_all_png=f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.af_diffs_all.png",
         not_in_gnomad_png=f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.not_in_gnomad_afs.png",
         not_in_gnomad_tsv=f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.divref_not_in_gnomad.tsv",
     log:

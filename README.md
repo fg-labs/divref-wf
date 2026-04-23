@@ -54,18 +54,28 @@ pixi run -e analysis setup-r-packages
 > DivRef is constructed by computing empirical phased haplotypes within 25 BPs over 0.5% allele frequency from the Human Genome Diversity Panel (HGDP) using the phased Hail dataset provided by the gnomAD team at the Broad Institute, merged with single variants over 0.5% AF from the gnomAD v4.1.0 summary release.
 
 Some gnomAD v4.1.0 variants that we expected to see represented in DivRef 1.1 were not.
-We checked all 'gnomAD_variant' variants on chr22 from DivRef 1.1 against the gnomAD 4.1 joint (exomes and genomes) variants and the gnomAD 3.1.2 HGDP+1KG subset variants.
-The latter is the source used for the haplotypes present in DivRef.
+We checked all 'gnomAD_variant' variants on chr22 from DivRef 1.1 against:
+
+- gnomAD 3.1.2 HGDP+1KG subset
+- gnomAD 3.1.2 genomes (~76K genomes)
+- gnomAD 4.1 joint (~730K exomes and ~76K genomes)
+
+gnomAD 3.1.2 HGDP+1KG subset is the source used for the haplotypes present in DivRef 1.1.
 
 ```bash
 pixi run -e analysis snakemake -j1 -s workflows/compare_divref_gnomad.smk
 ```
 
-We found that all DivRef 1.1 variants were present in the gnomAD 3.1.2 HGDP+1KG subset, while 16 were missing from the gnomAD 4.1 joint set.
+**DivRef 1.1 variants present in gnomAD datasets**
+
+We found that all DivRef 1.1 'gnomAD_variant' variants were present in the gnomAD 3.1.2 HGDP+1KG subset and in the gnomAD 3.1.2 genomes set, while 16 were missing from the gnomAD 4.1 joint set.
+
 We further compared the allele frequencies for the 5 populations recorded in the DivRef 1.1 DuckDB index against the frequencies for those populations in the two gnomAD sets, using the Hail tables as input.
 
-The allele frequencies between DivRef 1.1 and the gnomAD 3.1.2 HGDP+1KG subset were very close, within a rounding error of 5e06, for all variants.
+- gnomAD 3.1.2 HGDP+1KG subset: within a rounding error of 5e-6, for all variants.
+- gnomAD 3.1.2 genomes: 1,400 variants with an AF difference >= 0.001, all of which had lower AF in the genomes set compared to HGDP+1KG, indicating more stringent filtering in the genomes set
+- gnomAD 4.1 joint: 60,424 variants with an AF difference >= 0.001, evenly distributed both lower and higher AF
 
-The allele frequencies between DivRef 1.1 and gnomAD 4.1 joint set were significantly different. 60,424 variants were found with an allele frequence difference >= 0.001.
+There are 506,983 DivRef 1.1 'gnomAD_variant' variants. When we run the original DivRef script [extract_gnomad_afs.py](https://github.com/e9genomics/human-diversity-reference/blob/main/scripts/extract_gnomad_afs.py) (uses gnomAD 3.1.2 HGDP+1KG sites as input, hard-coded) followed by lines 156-177 of [create_fasta_and_index.py](https://github.com/e9genomics/human-diversity-reference/blob/main/scripts/create_fasta_and_index.py) (lines 156-177) using the parameters specified in the [Makefile](https://github.com/e9genomics/human-diversity-reference/blob/main/Makefile), we also get 506,983 variants. 
 
 We concluded that the DivRef 1.1 documentation was incorrect, and that the actual source of the gnomAD variants in the dataset was the gnomAD 3.1.2 HGDP+1KG subset, the same as for the haplotypes.
