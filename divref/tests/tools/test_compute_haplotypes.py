@@ -4,14 +4,25 @@ from pathlib import Path
 from unittest.mock import patch
 
 import hail as hl
+import pytest
 
 from divref.tools.compute_haplotypes import compute_haplotypes
 
 
+@pytest.mark.parametrize(
+    "freq_threshold,expected_count",
+    [
+        (0, 2955),
+        (0.005, 33),
+        (1, 0),
+    ],
+)
 def test_compute_haplotypes(
     hail_context: None,  # noqa: ARG001
     datadir: Path,
     tmp_path: Path,
+    freq_threshold: float,
+    expected_count: int,
 ) -> None:
     """Happy-path: compute haplotypes from test VCF with gnomAD annotations."""
     # --- act ---
@@ -26,8 +37,8 @@ def test_compute_haplotypes(
             gnomad_va_file=in_sites,
             gnomad_sa_file=in_samples,
             window_size=5000,
-            variant_freq_threshold=0.005,
-            haplotype_freq_threshold=0.005,
+            variant_freq_threshold=freq_threshold,
+            haplotype_freq_threshold=freq_threshold,
             output_base=output_base,
             temp_dir=tmp_path / "hail_tmp",
         )
@@ -35,7 +46,7 @@ def test_compute_haplotypes(
     # --- assert ---
     result = hl.read_table(f"{output_base}.ht")
     result_count = result.count()
-    assert result_count == 33
+    assert result_count == expected_count
 
     results: list[hl.Struct] = result.collect()
 
