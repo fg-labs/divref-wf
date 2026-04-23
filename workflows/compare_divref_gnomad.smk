@@ -10,7 +10,9 @@ from pathlib import Path
 ####################################################################################################
 
 OUTPUT_DIR: Path = Path("data/analysis")
+COMPARISON_NAME: str = "compare_divref_gnomad_0_005"
 CONTIG: str = "chr22"
+FREQUENCY_THRESHOLD: float = 0.005
 DIVREF_DUCKDB_URL: str = (
     "https://zenodo.org/records/14802613/files/" "DivRef-v1.1.haplotypes_gnomad_merge.index.duckdb"
 )
@@ -34,23 +36,23 @@ ruleorder: compare_divref_gnomad > extract_gnomad_single_afs
 rule all:
     input:
         expand(
-            f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.af_diffs.png",
+            f"{OUTPUT_DIR}/{COMPARISON_NAME}/{CONTIG}.{{gnomad_version}}.af_diffs.png",
             gnomad_version=GNOMAD_VERSIONS,
         ),
         expand(
-            f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.af_diffs_all.png",
+            f"{OUTPUT_DIR}/{COMPARISON_NAME}/{CONTIG}.{{gnomad_version}}.af_diffs_all.png",
             gnomad_version=GNOMAD_VERSIONS,
         ),
         expand(
-            f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.not_in_gnomad_afs.png",
+            f"{OUTPUT_DIR}/{COMPARISON_NAME}/{CONTIG}.{{gnomad_version}}.not_in_gnomad_afs.png",
             gnomad_version=GNOMAD_VERSIONS,
         ),
         expand(
-            f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.divref_not_in_gnomad.tsv",
+            f"{OUTPUT_DIR}/{COMPARISON_NAME}/{CONTIG}.{{gnomad_version}}.divref_not_in_gnomad.tsv",
             gnomad_version=GNOMAD_VERSIONS,
         ),
         expand(
-            f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.log",
+            f"{OUTPUT_DIR}/{COMPARISON_NAME}/{CONTIG}.{{gnomad_version}}.log",
             gnomad_version=GNOMAD_VERSIONS,
         ),
 
@@ -62,7 +64,7 @@ rule download_divref_index:
     output:
         duckdb=f"{OUTPUT_DIR}/input/DivRef-v1.1.haplotypes_gnomad_merge.index.duckdb",
     log:
-        f"logs/compare_divref_gnomad/download_divref_index.log",
+        f"logs/{COMPARISON_NAME}/download_divref_index.log",
     params:
         url=DIVREF_DUCKDB_URL,
     shell:
@@ -79,17 +81,19 @@ rule download_divref_index:
 ####################################################################################################
 rule extract_gnomad_single_afs:
     output:
-        tsv=f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.tsv",
+        tsv=f"{OUTPUT_DIR}/{COMPARISON_NAME}/{CONTIG}.{{gnomad_version}}.tsv",
     log:
-        f"logs/compare_divref_gnomad/extract_gnomad_single_afs.{{gnomad_version}}.log",
+        f"logs/{COMPARISON_NAME}/extract_gnomad_single_afs.{{gnomad_version}}.log",
     params:
         contig=CONTIG,
+        freq_threshold=FREQUENCY_THRESHOLD,
         gnomad_version=lambda wildcards: wildcards.gnomad_version.upper(),
     shell:
         """
         (
             divref extract-gnomad-single-afs \
                 --contig {params.contig} \
+                --freq-threshold {params.freq_threshold} \
                 --gnomad-version {params.gnomad_version} \
                 --out-sites-tsv {output.tsv}
         ) &> {log}
@@ -104,18 +108,18 @@ rule extract_gnomad_single_afs:
 rule compare_divref_gnomad:
     input:
         duckdb=f"{OUTPUT_DIR}/input/DivRef-v1.1.haplotypes_gnomad_merge.index.duckdb",
-        tsv=f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.tsv",
+        tsv=f"{OUTPUT_DIR}/{COMPARISON_NAME}/{CONTIG}.{{gnomad_version}}.tsv",
     output:
-        af_diffs_png=f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.af_diffs.png",
-        af_diffs_all_png=f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.af_diffs_all.png",
-        not_in_gnomad_png=f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.not_in_gnomad_afs.png",
-        not_in_gnomad_tsv=f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.divref_not_in_gnomad.tsv",
+        af_diffs_png=f"{OUTPUT_DIR}/{COMPARISON_NAME}/{CONTIG}.{{gnomad_version}}.af_diffs.png",
+        af_diffs_all_png=f"{OUTPUT_DIR}/{COMPARISON_NAME}/{CONTIG}.{{gnomad_version}}.af_diffs_all.png",
+        not_in_gnomad_png=f"{OUTPUT_DIR}/{COMPARISON_NAME}/{CONTIG}.{{gnomad_version}}.not_in_gnomad_afs.png",
+        not_in_gnomad_tsv=f"{OUTPUT_DIR}/{COMPARISON_NAME}/{CONTIG}.{{gnomad_version}}.divref_not_in_gnomad.tsv",
     log:
-        f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}.log",
+        f"{OUTPUT_DIR}/{COMPARISON_NAME}/{CONTIG}.{{gnomad_version}}.log",
     params:
         contig=CONTIG,
         gnomad_label=lambda wildcards: GNOMAD_LABEL[wildcards.gnomad_version],
-        output_base=f"{OUTPUT_DIR}/compare_divref_gnomad/{CONTIG}.{{gnomad_version}}",
+        output_base=f"{OUTPUT_DIR}/{COMPARISON_NAME}/{CONTIG}.{{gnomad_version}}",
     shell:
         """
         (
