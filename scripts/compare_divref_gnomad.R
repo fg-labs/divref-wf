@@ -88,14 +88,15 @@ divref_not_in_gnomad <- divref_merged_with_gnomad %>%
   filter(if_all(all_of(populations), is.na)) %>%
   select(-all_of(populations))
 
-log_info(nrow(divref_in_gnomad), " DivRef variants found in gnomAD")
-log_info(nrow(divref_not_in_gnomad), " DivRef variants not found in gnomAD")
-
 # Plot: Venn diagram of DivRef vs gnomAD variant overlap ----
 
 n_both <- nrow(divref_in_gnomad)
 n_divref_only <- nrow(divref_not_in_gnomad)
 n_gnomad_only <- nrow(gnomad) - n_both
+
+log_info(nrow(divref_in_gnomad), " DivRef variants found in gnomAD")
+log_info(nrow(divref_not_in_gnomad), " DivRef variants not found in gnomAD")
+log_info(n_gnomad_only, "gnomAD variants not found in DivRef")
 
 venn_counts <- c(n_divref_only, n_gnomad_only, n_both)
 names(venn_counts) <- c("DivRef 1.1", opts$gnomad_label, paste0("DivRef 1.1&", opts$gnomad_label))
@@ -131,7 +132,7 @@ p <- divref_in_gnomad_with_af_diffs %>%
   facet_wrap(~population, nrow = 5) +
   scale_y_log10() +
   theme_bw() +
-  xlab(paste0(opts$gnomad_label, " - DivRef 1.1 AF")) +
+  xlab(paste0(opts$gnomad_label, " AF - DivRef 1.1 AF")) +
   ylab("Variants")
 
 ggsave(paste0(opts$output_base, ".af_diffs.png"), p, height = 10, width = 6)
@@ -146,7 +147,7 @@ p <- divref_in_gnomad_with_af_diffs %>%
   geom_histogram() +
   scale_y_log10() +
   theme_bw() +
-  xlab(paste0(opts$gnomad_label, " - DivRef 1.1 AF")) +
+  xlab(paste0(opts$gnomad_label, " AF - DivRef 1.1 AF")) +
   ylab("Variants")
 
 ggsave(paste0(opts$output_base, ".af_diffs_all.png"), p, height = 6, width = 6)

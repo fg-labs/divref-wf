@@ -20,9 +20,9 @@ GNOMAD_VERSIONS: list[str] = ["joint_41", "genomes_312", "hgdp_1kg_312"]
 
 # Maps filename wildcard → plot label used by compare_divref_gnomad.R
 GNOMAD_LABEL: dict[str, str] = {
-    "joint_41": "gnomAD 4.1 joint AF",
-    "genomes_312": "gnomAD 3.1.2 genomes AF",
-    "hgdp_1kg_312": "gnomAD 3.1.2 HGDP+1KG AF",
+    "joint_41": "gnomAD 4.1 joint",
+    "genomes_312": "gnomAD 3.1.2 genomes",
+    "hgdp_1kg_312": "gnomAD 3.1.2 HGDP+1KG",
 }
 
 OUT_FILE_EXTS: list[str] = [
