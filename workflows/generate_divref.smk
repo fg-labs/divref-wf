@@ -154,7 +154,8 @@ rule compute_haplotypes:
         "logs/generate_divref/compute_haplotypes.{chrom}.log",
     params:
         window_size=HGDP_1KG_HAPLOTYPE_WINDOW_SIZE,
-        freq_threshold=HGDP_1KG_MIN_POP_AF_COMPUTE_HAPLOTYPES,
+        variant_freq_threshold=HGDP_1KG_MIN_POP_AF_COMPUTE_HAPLOTYPES,
+        haplotype_freq_threshold=HGDP_1KG_MIN_EST_GNOMAD_HAPLOTYPE_AF,
         output_base=f"{WORK_DIR}/haplotypes/hgdp_1kg.haplotypes.{{chrom}}",
     shell:
         """
@@ -164,7 +165,8 @@ rule compute_haplotypes:
                 --gnomad-va-file {input.variant_ht} \
                 --gnomad-sa-file {input.sample_ht} \
                 --window-size {params.window_size} \
-                --freq-threshold {params.freq_threshold} \
+                --variant-freq-threshold {params.variant_freq_threshold} \
+                --haplotype-freq-threshold {params.haplotype_freq_threshold} \
                 --output-base {params.output_base}
             
             # remove intermediate files
