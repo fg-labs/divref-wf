@@ -42,8 +42,6 @@ def _get_haplotypes(
     Returns:
         Hail table of haplotypes with empirical frequency summaries.
     """
-    new_locus = windower_f(ht.locus)
-    ht = ht.annotate(new_locus=new_locus)
 
     def agg_haplos(arr: hl.Expression) -> hl.Expression:
         """
@@ -76,17 +74,6 @@ def _get_haplotypes(
                 .map_values(lambda arr: hl.len(arr))
             )
         )
-
-    ht_grouped = ht.group_by("new_locus").aggregate(
-        row_map=hl.dict(
-            hl.agg.collect((
-                ht.row_idx,
-                ht.row.select("locus", "alleles", "freq", "frequencies_by_pop"),
-            ))
-        ),
-        left_haplos=agg_haplos(ht.pops_and_ids_left),
-        right_haplos=agg_haplos(ht.pops_and_ids_right),
-    )
 
     def collapse_haplos_across_samples(
         pop: hl.Expression, arr1: hl.Expression, arr2: hl.Expression
@@ -137,14 +124,6 @@ def _get_haplotypes(
 
         return hl.array(hl.group_by(lambda x: x[0], flat)).map(map_haplo_group)
 
-    ht_grouped = ht_grouped.annotate(
-        all_haplos=hl.literal(list(pop_ints.values())).flatmap(
-            lambda pop: collapse_haplos_across_samples(
-                pop, ht_grouped.left_haplos, ht_grouped.right_haplos
-            )
-        )
-    )
-
     def get_haplotype_summary(a: hl.Expression) -> dict[str, hl.Expression]:
         """
         Extract the top-population frequency fields from a collapsed haplotype array.
@@ -169,6 +148,28 @@ def _get_haplotypes(
             min_variant_frequency=a_sorted[0].min_variant_frequency,
             all_pop_freqs=a_sorted.map(lambda x: x.drop("haplotype")),
         )
+
+    new_locus = windower_f(ht.locus)
+    ht = ht.annotate(new_locus=new_locus)
+
+    ht_grouped = ht.group_by("new_locus").aggregate(
+        row_map=hl.dict(
+            hl.agg.collect((
+                ht.row_idx,
+                ht.row.select("locus", "alleles", "freq", "frequencies_by_pop"),
+            ))
+        ),
+        left_haplos=agg_haplos(ht.pops_and_ids_left),
+        right_haplos=agg_haplos(ht.pops_and_ids_right),
+    )
+
+    ht_grouped = ht_grouped.annotate(
+        all_haplos=hl.literal(list(pop_ints.values())).flatmap(
+            lambda pop: collapse_haplos_across_samples(
+                pop, ht_grouped.left_haplos, ht_grouped.right_haplos
+            )
+        )
+    )
 
     ht_grouped = ht_grouped.transmute(
         all_haplos=hl.array(hl.group_by(lambda x: x.haplotype, ht_grouped.all_haplos)).map(
@@ -320,6 +321,9 @@ def compute_haplotypes(
         "row_idx",
         "frequencies_by_pop",
     )
+
+    if ht.count() == 0:
+        raise ValueError(f"No variants found with minimum population AF {variant_freq_threshold}.")
 
     window1 = _get_haplotypes(
         ht=ht,
