@@ -8,6 +8,7 @@ import hail as hl
 import pytest
 
 from divref.haplotype import get_haplo_sequence
+from divref.haplotype import haplo_coordinates
 from divref.haplotype import split_haplotypes
 from divref.haplotype import to_hashable_items
 from divref.haplotype import variant_distance
@@ -232,3 +233,59 @@ def test_split_haplotypes_discards_singleton_segment(hail_context: None) -> None
     rows = split_haplotypes(ht, window_size=200).collect()
     assert len(rows) == 1
     assert [v.locus.position for v in rows[0].variants] == [500, 501]
+
+
+# ---------------------------------------------------------------------------
+# haplo_coordinates
+# ---------------------------------------------------------------------------
+
+
+def test_haplo_coordinates_snp(hail_context: None) -> None:  # noqa: ARG001
+    """Single SNP at position P with window W: start = P - W, end = P + 1 + W."""
+    variants = hl.array([_make_variant(100, "A", "T")])
+    coords = hl.eval(haplo_coordinates(10, variants))
+    assert coords.start == 90
+    assert coords.end == 111
+
+
+def test_haplo_coordinates_insertion(hail_context: None) -> None:  # noqa: ARG001
+    """Insertion (ref len 1) has the same start/end as a SNP at the same position."""
+    variants = hl.array([_make_variant(100, "A", "ACGT")])
+    coords = hl.eval(haplo_coordinates(10, variants))
+    assert coords.start == 90
+    assert coords.end == 111
+
+
+def test_haplo_coordinates_deletion(hail_context: None) -> None:  # noqa: ARG001
+    """Deletion with ref len 4 at position 100 with window 10: end = 100 + 4 + 10 = 114."""
+    variants = hl.array([_make_variant(100, "ACGT", "A")])
+    coords = hl.eval(haplo_coordinates(10, variants))
+    assert coords.start == 90
+    assert coords.end == 114
+
+
+def test_haplo_coordinates_multi_variant(hail_context: None) -> None:  # noqa: ARG001
+    """Start uses first variant; end uses last variant's ref allele end + window."""
+    variants = hl.array([
+        _make_variant(100, "A", "T"),
+        _make_variant(200, "GG", "G"),
+    ])
+    coords = hl.eval(haplo_coordinates(10, variants))
+    assert coords.start == 90  # 100 - 10
+    assert coords.end == 212  # 200 + 2 + 10
+
+
+def test_haplo_coordinates_matches_sequence_length(hail_context: None) -> None:  # noqa: ARG001
+    """For a SNP-only haplotype, end - start must equal len(sequence)."""
+    reference = "0" * 300
+
+    mock_get_sequence = _create_reference_mock(reference)
+
+    with patch("hail.get_sequence", side_effect=mock_get_sequence):
+        window = 10
+        variants = hl.array([_make_variant(150, "A", "T")])
+        seq = hl.eval(
+            get_haplo_sequence(context_size=window, variants=[_make_variant(150, "A", "T")])
+        )
+        coords = hl.eval(haplo_coordinates(window, variants))
+        assert coords.end - coords.start == len(seq)
