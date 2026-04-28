@@ -35,19 +35,11 @@ HGDP_1KG_PHASED_BCF_PREFIX: str = config["hgdp_1kg_phased_bcf_prefix"]
 HGDP_1KG_PHASED_BCF_SUFFIX: str = config["hgdp_1kg_phased_bcf_suffix"]
 HGDP_1KG_VARIANT_ANNOTATION_HAIL_TABLE: str = config["hgdp_1kg_variant_annotation_hail_table"]
 HGDP_1KG_SAMPLE_METADATA_HAIL_TABLE: str = config["hgdp_1kg_sample_metadata_hail_table"]
-HGDP_1KG_MIN_POP_AF_EXTRACT_GNOMAD_AFS: float = config["hgdp_1kg_min_pop_af_extract_gnomad_afs"]
+HGDP_1KG_MIN_POP_VARIANT_AF: float = config["hgdp_1kg_min_pop_variant_allele_freq"]
+HGDP_1KG_MIN_POP_HAPLOTYPE_AF: float = config["hgdp_1kg_min_estimated_gnomad_haplotype_allele_freq"]
 HGDP_1KG_HAPLOTYPE_WINDOW_SIZE: int = config["hgdp_1kg_haplotype_window_size"]
-HGDP_1KG_MIN_POP_AF_COMPUTE_HAPLOTYPES: float = config["hgdp_1kg_min_pop_af_compute_haplotypes"]
-HGDP_1KG_MIN_EST_GNOMAD_HAPLOTYPE_AF: float = config["hgdp_1kg_min_estimated_gnomad_haplotype_af"]
 
 SEQUENCE_WINDOW_SIZE: int = config["sequence_window_size"]
-
-if HGDP_1KG_MIN_POP_AF_EXTRACT_GNOMAD_AFS > HGDP_1KG_MIN_POP_AF_COMPUTE_HAPLOTYPES:
-    raise ValueError(
-        f"hgdp_1kg_min_pop_af_extract_gnomad_afs ({HGDP_1KG_MIN_POP_AF_EXTRACT_GNOMAD_AFS}) "
-        f"must be <= hgdp_1kg_min_pop_af_compute_haplotypes "
-        f"({HGDP_1KG_MIN_POP_AF_COMPUTE_HAPLOTYPES})"
-    )
 
 VCF_EXTS: list[str] = [".vcf.gz", ".vcf.gz.tbi"]
 
@@ -104,7 +96,7 @@ rule extract_gnomad_afs:
         "logs/generate_divref/extract_gnomad_afs.{chrom}.log",
     params:
         variant_ht=HGDP_1KG_VARIANT_ANNOTATION_HAIL_TABLE,
-        freq_threshold=HGDP_1KG_MIN_POP_AF_EXTRACT_GNOMAD_AFS,
+        freq_threshold=HGDP_1KG_MIN_POP_VARIANT_AF,
         populations=" ".join(POPS),
     shell:
         """
@@ -154,8 +146,8 @@ rule compute_haplotypes:
         "logs/generate_divref/compute_haplotypes.{chrom}.log",
     params:
         window_size=HGDP_1KG_HAPLOTYPE_WINDOW_SIZE,
-        variant_freq_threshold=HGDP_1KG_MIN_POP_AF_COMPUTE_HAPLOTYPES,
-        haplotype_freq_threshold=HGDP_1KG_MIN_EST_GNOMAD_HAPLOTYPE_AF,
+        variant_freq_threshold=HGDP_1KG_MIN_POP_VARIANT_AF,
+        haplotype_freq_threshold=HGDP_1KG_MIN_POP_HAPLOTYPE_AF,
         output_base=f"{WORK_DIR}/haplotypes/hgdp_1kg.haplotypes.{{chrom}}",
     shell:
         """

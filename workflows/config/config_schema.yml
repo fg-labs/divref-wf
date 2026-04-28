@@ -53,42 +53,29 @@ properties:
     description: GCS URI to the HGDP+1KG gnomAD sample metadata Hail table.
     default: "gs://gcp-public-data--gnomad/release/3.1.2/ht/genomes/gnomad.genomes.v3.1.2.hgdp_1kg_subset_sample_meta.ht"
 
-  hgdp_1kg_min_pop_af_extract_gnomad_afs:
+  hgdp_1kg_min_pop_variant_allele_freq:
     type: number
     minimum: 0
     maximum: 1
     description: |
-      Minimum allele frequency for at least one selected population when running `divref extract-gnomad-afs`.
-      Must be <= `hgdp_1kg_min_pop_af_compute_haplotypes`. There are two AF thresholds set in this workflow.
-      This one is to filter the GCS-hosted Hail table of sites down to a smaller size which is written to
-      disk for downstream tasks. This step is time-intensive and if we set a relaxed threshold it can be run
-      once and the outputs re-used for cheaper re-filtering at more stringent thresholds at the `divref
-      compute-haplotypes` step.
-    default: 0.001
+      Minimum variant allele frequency for at least one selected population when running
+      `divref extract-gnomad-afs` and `divref compute-haplotypes`. Also applied to 
+    default: 0.005
+
+  hgdp_1kg_min_estimated_gnomad_haplotype_allele_freq:
+    type: number
+    minimum: 0
+    maximum: 1
+    description: |
+      Minimum estimated gnomAD haplotype allele frequency for inclusion in output. Used by
+      `divref compute-haplotypes`.
+    default: 0.005
 
   hgdp_1kg_haplotype_window_size:
     type: integer
     minimum: 1
     description: Window size in bp for grouping variants into haplotypes.
     default: 100
-
-  hgdp_1kg_min_pop_af_compute_haplotypes:
-    type: number
-    minimum: 0
-    maximum: 1
-    description: |
-      Minimum allele frequency for a variant in at least one selected population when running 
-      `divref compute-haplotypes`.
-    default: 0.005
-
-  hgdp_1kg_min_estimated_gnomad_haplotype_af:
-    type: number
-    minimum: 0
-    maximum: 1
-    description: |
-      Minimum estimated gnomAD haplotype allele frequency for inclusion in output. Used by
-      `divref create-fasta-and-index`.
-    default: 0.005
 
   sequence_window_size:
     type: integer
