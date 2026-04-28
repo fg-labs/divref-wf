@@ -225,7 +225,7 @@ def build_sequences_table(
         gnomad_variants_ht: hl.Table = build_gnomad_variant_table_entries(
             sites_table_path=table_pair.sites_table_path
         )
-        contig_seq_ht: hl.Table = hgdp_haplotypes_ht.union(gnomad_variants_ht)
+        contig_seq_ht: hl.Table = hgdp_haplotypes_ht.union(gnomad_variants_ht, unify=True)
         sequences_tables.append(contig_seq_ht)
 
     seq_ht: hl.Table = sequences_tables[0].union(*sequences_tables[1:])
@@ -298,6 +298,7 @@ def export_sequences_table_to_dataframe(
         out_file,
         separator="\t",
         schema_overrides={"sequence_id": polars.String},
+        null_values="null",
     )
 
 
