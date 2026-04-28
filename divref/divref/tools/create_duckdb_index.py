@@ -243,6 +243,7 @@ def build_sequences_table(
     coords = haplo_coordinates(window_size, seq_ht.variants)
     seq_ht = seq_ht.annotate(
         sequence=get_haplo_sequence(window_size, seq_ht.variants),
+        contig=seq_ht.variants[0].locus.contig,
         start=coords.start,
         end=coords.end,
     )
@@ -277,6 +278,7 @@ def export_sequences_table_to_dataframe(
         "sequence_length",
         "sequence_id",
         "n_variants",
+        "contig",
         "start",
         "end",
         "popmax_empirical_AF",
@@ -294,10 +296,14 @@ def export_sequences_table_to_dataframe(
         },
     ).export(str(out_file))
 
+    schema_overrides: dict[str, type[polars.DataType]] = {
+        "sequence_id": polars.String,
+        **{f"gnomAD_AF_{pop}": polars.String for pop in pops_legend},
+    }
     return polars.read_csv(
         out_file,
         separator="\t",
-        schema_overrides={"sequence_id": polars.String},
+        schema_overrides=schema_overrides,
         null_values="null",
     )
 
