@@ -170,7 +170,7 @@ rule compute_haplotypes:
                 --output-base {params.output_base}
             
             # remove intermediate files
-            rm -r {params.output_base}.[12].ht
+            rm -r {params.output_base}.[12].ht {params.output_base}.variants.ht
         ) &> {log}
         """
 

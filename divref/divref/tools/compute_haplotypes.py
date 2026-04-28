@@ -269,13 +269,14 @@ def compute_haplotypes(
         variant_freq_threshold: Minimum gnomAD population allele frequency to retain a variant.
         haplotype_freq_threshold: Minimum estimated gnomAD allele frequency for the haplotype to
             be retained.
-        output_base: Base output path; writes {output_base}.1.ht, {output_base}.2.ht,
-            and the final {output_base}.ht.
+        output_base: Base output path; writes {output_base}.variants.ht, {output_base}.1.ht,
+            {output_base}.2.ht, and the final {output_base}.ht.
         temp_dir: Local directory for Hail temporary files.
     """
     assert_path_is_readable(vcfs_path)
     assert_directory_exists(gnomad_va_file)
     assert_directory_exists(gnomad_sa_file)
+    assert_path_is_writable(output_base.with_suffix(output_base.suffix + ".variants.ht"))
     assert_path_is_writable(output_base.with_suffix(output_base.suffix + ".1.ht"))
     assert_path_is_writable(output_base.with_suffix(output_base.suffix + ".2.ht"))
     assert_path_is_writable(output_base.with_suffix(output_base.suffix + ".ht"))
@@ -321,8 +322,9 @@ def compute_haplotypes(
         "row_idx",
         "frequencies_by_pop",
     )
+    ht = ht.checkpoint(f"{str(output_base)}.variants.ht", overwrite=True)
 
-    if ht.count() == 0:
+    if ht.head(1).count() == 0:
         raise ValueError(f"No variants found with minimum population AF {variant_freq_threshold}.")
 
     window1 = _get_haplotypes(
