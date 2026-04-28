@@ -109,8 +109,8 @@ def extract_gnomad_single_afs(
 
     Reads a gnomAD sites table and filters to variants above the frequency threshold in at least one
     population. Writes up to two outputs: a Hail table at `out_sites_hail_table` for downstream
-    pipeline tools, and a flat TSV at `out_sites_tsv` with columns `variant` (contig:pos:ref:alt)
-    and one allele-frequency column per population.
+    pipeline tools, and a flat TSV at `out_sites_tsv` with columns `variant` (contig:pos:ref:alt),
+    one allele-frequency column per population, `popmax_A[CFN]`, and `maxpop`.
 
     At least one of `out_sites_hail_table` or `out_sites_tsv` must be defined.
 

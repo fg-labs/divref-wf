@@ -49,7 +49,11 @@ divref <- dbGetQuery(
   select(-c(sequence, sequence_length, sequence_id, n_variants, source, contig)) %>%
   rename(divref_maxpop = max_pop) %>%
   mutate(
-    popmax_empirical_AN = ceiling(popmax_empirical_AC / popmax_empirical_AF),
+    popmax_empirical_AN = if_else(
+      !is.na(popmax_empirical_AF) & popmax_empirical_AF > 0,
+      ceiling(popmax_empirical_AC / popmax_empirical_AF),
+      NA
+    ),
     gnomAD_AF_afr = as.numeric(gnomAD_AF_afr),
     gnomAD_AF_amr = as.numeric(gnomAD_AF_amr),
     gnomAD_AF_eas = as.numeric(gnomAD_AF_eas),
