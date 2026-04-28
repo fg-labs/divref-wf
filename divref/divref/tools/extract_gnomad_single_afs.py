@@ -32,6 +32,10 @@ class _GnomadSchema:
     freq_meta_path: str  # dot-path into table globals, e.g. "joint_globals.freq_meta"
     row_freq_field: str  # dot-path on table row, e.g. "joint.freq"
     pop_key: str  # key in freq_meta entries for the population code, e.g. "gen_anc" or "pop"
+    popmax_AC_key: str  # dot-path on table row, e.g. "joint.grpmax.AC"  # noqa: N815
+    popmax_AF_key: str  # dot-path on table row, e.g. "joint.grpmax.AF"  # noqa: N815
+    popmax_AN_key: str  # dot-path on table row, e.g. "joint.grpmax.AN"  # noqa: N815
+    popmax_maxpop_key: str  # dot-path on table row, e.g. "joint.grpmax.gen_anc"
 
 
 _GNOMAD_SCHEMA: dict[GnomadVersion, _GnomadSchema] = {
@@ -39,16 +43,28 @@ _GNOMAD_SCHEMA: dict[GnomadVersion, _GnomadSchema] = {
         freq_meta_path="joint_globals.freq_meta",
         row_freq_field="joint.freq",
         pop_key="gen_anc",
+        popmax_AC_key="joint.grpmax.AC",
+        popmax_AF_key="joint.grpmax.AF",
+        popmax_AN_key="joint.grpmax.AN",
+        popmax_maxpop_key="joint.grpmax.gen_anc",
     ),
     GnomadVersion.GENOMES_312: _GnomadSchema(
         freq_meta_path="freq_meta",
         row_freq_field="freq",
         pop_key="pop",
+        popmax_AC_key="popmax.AC",
+        popmax_AF_key="popmax.AF",
+        popmax_AN_key="popmax.AN",
+        popmax_maxpop_key="popmax.pop",
     ),
     GnomadVersion.HGDP_1KG_312: _GnomadSchema(
         freq_meta_path="gnomad_freq_meta",
         row_freq_field="gnomad_freq",
         pop_key="pop",
+        popmax_AC_key="gnomad_popmax.AC",
+        popmax_AF_key="gnomad_popmax.AF",
+        popmax_AN_key="gnomad_popmax.AN",
+        popmax_maxpop_key="gnomad_popmax.pop",
     ),
 }
 
@@ -93,8 +109,8 @@ def extract_gnomad_single_afs(
 
     Reads a gnomAD sites table and filters to variants above the frequency threshold in at least one
     population. Writes up to two outputs: a Hail table at `out_sites_hail_table` for downstream
-    pipeline tools, and a flat TSV at `out_sites_tsv` with columns `variant` (contig:pos:ref:alt)
-    and one allele-frequency column per population.
+    pipeline tools, and a flat TSV at `out_sites_tsv` with columns `variant` (contig:pos:ref:alt),
+    one allele-frequency column per population, `popmax_A[CFN]`, and `maxpop`.
 
     At least one of `out_sites_hail_table` or `out_sites_tsv` must be defined.
 
@@ -140,11 +156,25 @@ def extract_gnomad_single_afs(
 
     va = va.select_globals(pops=populations)
     row_freq = operator.attrgetter(schema.row_freq_field)(va)
-    va = va.select(pop_freqs=hl.literal(pop_indices).map(lambda i: row_freq[i]))
+    va = va.select(
+        pop_freqs=hl.literal(pop_indices).map(lambda i: row_freq[i]),
+        popmax_AC=operator.attrgetter(schema.popmax_AC_key)(va),
+        popmax_AF=operator.attrgetter(schema.popmax_AF_key)(va),
+        popmax_AN=operator.attrgetter(schema.popmax_AN_key)(va),
+        maxpop=operator.attrgetter(schema.popmax_maxpop_key)(va),
+    )
     if freq_threshold > 0:
         va = va.filter(hl.any(lambda x: x.AF >= freq_threshold, va.pop_freqs))
     va = va.key_by()
-    va = va.select("locus", "alleles", "pop_freqs")
+    va = va.select(
+        "locus",
+        "alleles",
+        "pop_freqs",
+        "popmax_AC",
+        "popmax_AF",
+        "popmax_AN",
+        "maxpop",
+    )
 
     if out_sites_hail_table is not None:
         va.naive_coalesce(64).write(str(out_sites_hail_table), overwrite=True)
@@ -159,4 +189,8 @@ def extract_gnomad_single_afs(
                 va.alleles[1],
             ),
             **{pop: va.pop_freqs[i].AF for i, pop in enumerate(populations)},
+            popmax_AC=va.popmax_AC,
+            popmax_AF=va.popmax_AF,
+            popmax_AN=va.popmax_AN,
+            maxpop=va.maxpop,
         ).export(str(out_sites_tsv))
