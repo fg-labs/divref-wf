@@ -244,35 +244,35 @@ def test_haplo_coordinates_snp(hail_context: None) -> None:  # noqa: ARG001
     """Single SNP at position P with window W: start = P - W, end = P + 1 + W."""
     variants = hl.array([_make_variant(100, "A", "T")])
     coords = hl.eval(haplo_coordinates(10, variants))
-    assert coords.start == 90
-    assert coords.end == 111
+    assert coords.start == 89
+    assert coords.end == 110
 
 
 def test_haplo_coordinates_insertion(hail_context: None) -> None:  # noqa: ARG001
     """Insertion (ref len 1) has the same start/end as a SNP at the same position."""
     variants = hl.array([_make_variant(100, "A", "ACGT")])
     coords = hl.eval(haplo_coordinates(10, variants))
-    assert coords.start == 90
-    assert coords.end == 111
+    assert coords.start == 89
+    assert coords.end == 110
 
 
 def test_haplo_coordinates_deletion(hail_context: None) -> None:  # noqa: ARG001
-    """Deletion with ref len 4 at position 100 with window 10: end = 100 + 4 + 10 = 114."""
+    """Deletion with ref len 4 at position 100 with window 10: end = 100 - 1 + 4 + 10 = 113."""
     variants = hl.array([_make_variant(100, "ACGT", "A")])
     coords = hl.eval(haplo_coordinates(10, variants))
-    assert coords.start == 90
-    assert coords.end == 114
+    assert coords.start == 89
+    assert coords.end == 113
 
 
 def test_haplo_coordinates_multi_variant(hail_context: None) -> None:  # noqa: ARG001
-    """Start uses first variant; end uses last variant's ref allele end + window."""
+    """Start uses first variant; end uses last variant + ref allele length + window."""
     variants = hl.array([
         _make_variant(100, "A", "T"),
         _make_variant(200, "GG", "G"),
     ])
     coords = hl.eval(haplo_coordinates(10, variants))
-    assert coords.start == 90  # 100 - 10
-    assert coords.end == 212  # 200 + 2 + 10
+    assert coords.start == 89  # 100 - 1 - 10
+    assert coords.end == 211  # 200 -1 + 2 + 10
 
 
 def test_haplo_coordinates_matches_sequence_length(hail_context: None) -> None:  # noqa: ARG001

@@ -167,6 +167,8 @@ def haplo_coordinates(
     """
     Compute the 0-based half-open reference genome coordinates of a haplotype sequence window.
 
+    The variant position coordinate is 1-based.
+
     The window spans from `window_size` bases before the first variant to `window_size` bases
     after the end of the last variant's reference allele — matching the flanking context added
     by get_haplo_sequence.
@@ -183,6 +185,6 @@ def haplo_coordinates(
     min_variant = sorted_variants[0]
     max_variant = sorted_variants[-1]
     return hl.struct(
-        start=min_variant.locus.position - window_size,
-        end=max_variant.locus.position + hl.len(max_variant.alleles[0]) + window_size,
+        start=min_variant.locus.position - 1 - window_size,
+        end=max_variant.locus.position - 1 + hl.len(max_variant.alleles[0]) + window_size,
     )
