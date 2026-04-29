@@ -5,7 +5,9 @@ import hail as hl
 import pyspark
 
 
-def hail_init(gcs_credentials_path: Path) -> None:
+def hail_init(
+    gcs_credentials_path: Path, spark_driver_memory_gb: int = 1, spark_executor_memory_gb: int = 1
+) -> None:
     """
     Initialize Hail with GCS connector and credential configuration.
 
@@ -16,7 +18,24 @@ def hail_init(gcs_credentials_path: Path) -> None:
         gcs_credentials_path: Absolute path to a GCP Application Default Credentials
             JSON file. If the file exists and ``GOOGLE_APPLICATION_CREDENTIALS`` is not
             already set, it is exported to the environment before Hail starts.
+        spark_driver_memory_gb: Memory in GB to allocate to the Spark driver.
+        spark_executor_memory_gb: Memory in GB to allocate to the Spark executor.
     """
+    if spark_driver_memory_gb < 1:
+        raise ValueError(
+            f"Spark driver memory must be at least 1GB. Saw {spark_driver_memory_gb}GB."
+        )
+    if spark_executor_memory_gb < 1:
+        raise ValueError(
+            f"Spark driver memory must be at least 1GB. Saw {spark_driver_memory_gb}GB."
+        )
+
+    os.environ["PYSPARK_SUBMIT_ARGS"] = (
+        f"--driver-memory {spark_driver_memory_gb}g "
+        f"--executor-memory {spark_executor_memory_gb}g "
+        "pyspark-shell"
+    )
+
     if gcs_credentials_path.exists() and "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(gcs_credentials_path)
 
