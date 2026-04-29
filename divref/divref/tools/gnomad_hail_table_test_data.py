@@ -21,6 +21,8 @@ def gnomad_hail_table_test_data(
     out_sample_metadata: Path,
     locus: str = "chr1:100001-200000",
     gcs_credentials_path: Path = Path("~/.config/gcloud/application_default_credentials.json"),
+    spark_driver_memory_gb: int = 1,
+    spark_executor_memory_gb: int = 1,
 ) -> None:
     """
     Extract subsets of gnomAD HGDP/1KG variant annotations and sample metadata for testing.
@@ -34,11 +36,17 @@ def gnomad_hail_table_test_data(
             gnomad_population_inference only.
         locus: Locus interval for variant filtering.
         gcs_credentials_path: Path to GCS default credentials JSON file.
+        spark_driver_memory_gb: Memory in GB to allocate to the Spark driver.
+        spark_executor_memory_gb: Memory in GB to allocate to the Spark executor.
     """
     assert_path_is_writable(out_variant_annotation_table)
     assert_path_is_writable(out_sample_metadata)
 
-    hail_init(gcs_credentials_path.expanduser())
+    hail_init(
+        gcs_credentials_path.expanduser(),
+        spark_driver_memory_gb=spark_driver_memory_gb,
+        spark_executor_memory_gb=spark_executor_memory_gb,
+    )
 
     va = hl.read_table(in_gnomad_hgdp_variant_annotation_table)
     roi = [hl.parse_locus_interval(locus, reference_genome=defaults.REFERENCE_GENOME)]

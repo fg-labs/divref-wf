@@ -103,6 +103,8 @@ def extract_gnomad_single_afs(
     out_sites_hail_table: Path | None = None,
     out_sites_tsv: Path | None = None,
     gcs_credentials_path: Path = Path("~/.config/gcloud/application_default_credentials.json"),
+    spark_driver_memory_gb: int = 1,
+    spark_executor_memory_gb: int = 1,
 ) -> None:
     """
     Extract gnomAD variant and sample frequency data for downstream pipeline tools.
@@ -125,6 +127,8 @@ def extract_gnomad_single_afs(
         out_sites_hail_table: Output path for the Hail table. Optional.
         out_sites_tsv: Output path for the TSV file. Optional.
         gcs_credentials_path: Path to GCS default credentials JSON file.
+        spark_driver_memory_gb: Memory in GB to allocate to the Spark driver.
+        spark_executor_memory_gb: Memory in GB to allocate to the Spark executor.
     """
     if out_sites_hail_table is None and out_sites_tsv is None:
         raise ValueError("At least one of out_sites_hail_table or out_sites_tsv must be provided")
@@ -133,7 +137,11 @@ def extract_gnomad_single_afs(
     if out_sites_tsv is not None:
         assert_path_is_writable(out_sites_tsv)
 
-    hail_init(gcs_credentials_path.expanduser())
+    hail_init(
+        gcs_credentials_path.expanduser(),
+        spark_driver_memory_gb=spark_driver_memory_gb,
+        spark_executor_memory_gb=spark_executor_memory_gb,
+    )
 
     schema = _GNOMAD_SCHEMA[gnomad_version]
 

@@ -1,5 +1,6 @@
 """Tool to compute per-sample variant site counts across gnomAD frequency thresholds."""
 
+import os
 from pathlib import Path
 
 import hail as hl
@@ -18,6 +19,8 @@ def compute_variation_ratios(
     output_ht: Path,
     frequency_thresholds: list[float] = defaults.VARIATION_RATIO_FREQUENCY_THRESHOLDS,
     reference_genome: str = defaults.REFERENCE_GENOME,
+    spark_driver_memory_gb: int = 1,
+    spark_executor_memory_gb: int = 1,
 ) -> None:
     """
     Compute per-sample counts of non-reference variant sites across frequency thresholds.
@@ -35,6 +38,8 @@ def compute_variation_ratios(
         output_ht: Output path for the sample-level Hail table.
         frequency_thresholds: Frequency thresholds to calculate.
         reference_genome: Reference genome to use. Defaults to "GRCh38".
+        spark_driver_memory_gb: Memory in GB to allocate to the Spark driver.
+        spark_executor_memory_gb: Memory in GB to allocate to the Spark executor.
     """
     assert_path_is_readable(vcfs_path)
     assert_directory_exists(gnomad_va_file)
@@ -48,6 +53,20 @@ def compute_variation_ratios(
     if len(set(threshold_keys)) != len(threshold_keys):
         raise ValueError("frequency_thresholds produce duplicate output field names.")
 
+    if spark_driver_memory_gb < 1:
+        raise ValueError(
+            f"Spark driver memory must be at least 1GB. Saw {spark_driver_memory_gb}GB."
+        )
+    if spark_executor_memory_gb < 1:
+        raise ValueError(
+            f"Spark driver memory must be at least 1GB. Saw {spark_driver_memory_gb}GB."
+        )
+
+    os.environ["PYSPARK_SUBMIT_ARGS"] = (
+        f"--driver-memory {spark_driver_memory_gb}g "
+        f"--executor-memory {spark_executor_memory_gb}g "
+        "pyspark-shell"
+    )
     hl.init()
 
     gnomad_sa = hl.read_table(str(gnomad_sa_file))

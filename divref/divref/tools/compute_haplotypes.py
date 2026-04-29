@@ -1,6 +1,7 @@
 """Tool to compute haplotypes from VCF files with gnomAD population frequency annotations."""
 
 import logging
+import os
 from pathlib import Path
 from typing import Callable
 
@@ -251,6 +252,8 @@ def compute_haplotypes(
     haplotype_freq_threshold: float,
     output_base: Path,
     temp_dir: Path = Path("/tmp"),
+    spark_driver_memory_gb: int = 1,
+    spark_executor_memory_gb: int = 1,
 ) -> None:
     """
     Compute population haplotypes from VCF files with gnomAD frequency annotations.
@@ -272,6 +275,8 @@ def compute_haplotypes(
         output_base: Base output path; writes {output_base}.variants.ht, {output_base}.1.ht,
             {output_base}.2.ht, and the final {output_base}.ht.
         temp_dir: Local directory for Hail temporary files.
+        spark_driver_memory_gb: Memory in GB to allocate to the Spark driver.
+        spark_executor_memory_gb: Memory in GB to allocate to the Spark executor.
     """
     assert_path_is_readable(vcfs_path)
     assert_directory_exists(gnomad_va_file)
@@ -281,6 +286,20 @@ def compute_haplotypes(
     assert_path_is_writable(output_base.with_suffix(output_base.suffix + ".2.ht"))
     assert_path_is_writable(output_base.with_suffix(output_base.suffix + ".ht"))
 
+    if spark_driver_memory_gb < 1:
+        raise ValueError(
+            f"Spark driver memory must be at least 1GB. Saw {spark_driver_memory_gb}GB."
+        )
+    if spark_executor_memory_gb < 1:
+        raise ValueError(
+            f"Spark driver memory must be at least 1GB. Saw {spark_driver_memory_gb}GB."
+        )
+
+    os.environ["PYSPARK_SUBMIT_ARGS"] = (
+        f"--driver-memory {spark_driver_memory_gb}g "
+        f"--executor-memory {spark_executor_memory_gb}g "
+        "pyspark-shell"
+    )
     hl.init(tmp_dir=str(temp_dir))
 
     gnomad_sa = hl.read_table(str(gnomad_sa_file))
