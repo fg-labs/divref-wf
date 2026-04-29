@@ -356,17 +356,12 @@ def iter_dataframe_chunks(
         "sequence_id": polars.String,
         **{f"gnomAD_AF_{pop}": polars.String for pop in pops_legend},
     }
-    reader = polars.read_csv_batched(
+    lf = polars.scan_csv(
         tsv,
         separator="\t",
         schema_overrides=schema_overrides,
         null_values="null",
-        batch_size=chunk_size,
     )
-    while True:
-        batches = reader.next_batches(1)
-        if not batches:
-            return
-        for df in batches:
-            if df.height > 0:
-                yield df
+    for df in lf.collect_batches(chunk_size=chunk_size):
+        if df.height > 0:
+            yield df
