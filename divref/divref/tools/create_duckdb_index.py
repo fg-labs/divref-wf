@@ -49,7 +49,8 @@ def create_duckdb_index(  # noqa: C901
     polars_chunk_size: int = 100_000,
     retain_per_contig_tsvs: bool = False,
     force: bool = False,
-    spark_memory_gb: int = 16,
+    spark_driver_memory_gb: int = 1,
+    spark_executor_memory_gb: int = 1,
 ) -> None:
     """
     Convert per-chr haplotype and gnomAD variant Hail tables into a searchable DuckDB index.
@@ -79,12 +80,22 @@ def create_duckdb_index(  # noqa: C901
         retain_per_contig_tsvs: If True, write per-contig TSVs alongside the duckdb output rather
             than into `tmp_dir`.
         force: If True, overwrite an existing duckdb output. Otherwise raise FileExistsError.
-        spark_memory_gb: Memory in GB to allocate to both the Spark driver and executor.
+        spark_driver_memory_gb: Memory in GB to allocate to the Spark driver.
+        spark_executor_memory_gb: Memory in GB to allocate to the Spark executor.
     """
     assert_path_is_readable(in_table_pairs_tsv)
     assert_path_is_readable(reference_fasta)
     assert_path_is_readable(reference_fasta.with_suffix(".fai"))
     assert_directory_exists(tmp_dir)
+
+    if spark_driver_memory_gb < 1:
+        raise ValueError(
+            f"Spark driver memory must be at least 1GB. Saw {spark_driver_memory_gb}GB."
+        )
+    if spark_executor_memory_gb < 1:
+        raise ValueError(
+            f"Spark driver memory must be at least 1GB. Saw {spark_driver_memory_gb}GB."
+        )
 
     out_duckdb_file: Path = Path(f"{str(output_base)}.haplotypes_gnomad_merge.index.duckdb")
     if out_duckdb_file.exists():
@@ -114,7 +125,9 @@ def create_duckdb_index(  # noqa: C901
             assert_path_is_writable(tsv_path)
 
     os.environ["PYSPARK_SUBMIT_ARGS"] = (
-        f"--driver-memory {spark_memory_gb}g --executor-memory {spark_memory_gb}g pyspark-shell"
+        f"--driver-memory {spark_driver_memory_gb}g "
+        f"--executor-memory {spark_executor_memory_gb}g "
+        "pyspark-shell"
     )
     hl.init(tmp_dir=str(tmp_dir))
 
