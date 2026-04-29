@@ -46,6 +46,9 @@ GNOMAD_VARIANT_MIN_POP_VARIANT_AF: float = config["gnomad_variant_min_pop_varian
 SEQUENCE_WINDOW_SIZE: int = config["sequence_window_size"]
 POLARS_CHUNK_SIZE: int = config["polars_chunk_size"]
 
+SPARK_DRIVER_MEMORY_GB: int = config["spark_driver_memory_gb"]
+SPARK_EXECUTOR_MEMORY_GB: int = config["spark_executor_memory_gb"]
+
 VCF_EXTS: list[str] = [".vcf.gz", ".vcf.gz.tbi"]
 
 ####################################################################################################
@@ -103,6 +106,8 @@ rule extract_gnomad_afs:
         variant_ht=HGDP_1KG_VARIANT_ANNOTATION_HAIL_TABLE,
         freq_threshold=HGDP_1KG_MIN_POP_VARIANT_AF,
         populations=" ".join(POPS),
+        spark_driver_memory_gb=SPARK_DRIVER_MEMORY_GB,
+        spark_executor_memory_gb=SPARK_EXECUTOR_MEMORY_GB,
     shell:
         """
         (
@@ -111,7 +116,9 @@ rule extract_gnomad_afs:
                 --out-variant-annotation-table {output.variant_ht} \
                 --contig {wildcards.chrom} \
                 --freq-threshold {params.freq_threshold} \
-                --populations {params.populations}
+                --populations {params.populations} \
+                --spark-driver-memory-gb {params.spark_driver_memory_gb} \
+                --spark-executor-memory-gb {params.spark_executor_memory_gb}
         ) &> {log}
         """
 
@@ -126,12 +133,16 @@ rule extract_sample_metadata:
         "logs/generate_divref/extract_sample_metadata.log",
     params:
         sample_ht=HGDP_1KG_SAMPLE_METADATA_HAIL_TABLE,
+        spark_driver_memory_gb=SPARK_DRIVER_MEMORY_GB,
+        spark_executor_memory_gb=SPARK_EXECUTOR_MEMORY_GB,
     shell:
         """
         (
             divref extract-sample-metadata \
                 --in-gnomad-hgdp-sample-data {params.sample_ht} \
-                --out-sample-metadata {output.sample_ht}
+                --out-sample-metadata {output.sample_ht} \
+                --spark-driver-memory-gb {params.spark_driver_memory_gb} \
+                --spark-executor-memory-gb {params.spark_executor_memory_gb}
         ) &> {log}
         """
 
@@ -154,6 +165,8 @@ rule compute_haplotypes:
         variant_freq_threshold=HGDP_1KG_MIN_POP_VARIANT_AF,
         haplotype_freq_threshold=HGDP_1KG_MIN_POP_HAPLOTYPE_AF,
         output_base=f"{WORK_DIR}/haplotypes/hgdp_1kg.haplotypes.{{chrom}}",
+        spark_driver_memory_gb=SPARK_DRIVER_MEMORY_GB,
+        spark_executor_memory_gb=SPARK_EXECUTOR_MEMORY_GB,
     shell:
         """
         (
@@ -164,8 +177,10 @@ rule compute_haplotypes:
                 --window-size {params.window_size} \
                 --variant-freq-threshold {params.variant_freq_threshold} \
                 --haplotype-freq-threshold {params.haplotype_freq_threshold} \
-                --output-base {params.output_base}
-            
+                --output-base {params.output_base} \
+                --spark-driver-memory-gb {params.spark_driver_memory_gb} \
+                --spark-executor-memory-gb {params.spark_executor_memory_gb}
+
             # remove intermediate files
             rm -r {params.output_base}.[12].ht {params.output_base}.variants.ht
         ) &> {log}
@@ -185,6 +200,8 @@ rule extract_gnomad_variant_afs:
         gnomad_source=GNOMAD_VARIANT_ANNOTATION_SOURCE,
         freq_threshold=GNOMAD_VARIANT_MIN_POP_VARIANT_AF,
         populations=" ".join(POPS),
+        spark_driver_memory_gb=SPARK_DRIVER_MEMORY_GB,
+        spark_executor_memory_gb=SPARK_EXECUTOR_MEMORY_GB,
     shell:
         """
         (
@@ -193,7 +210,9 @@ rule extract_gnomad_variant_afs:
                 --contig {wildcards.chrom} \
                 --freq-threshold {params.freq_threshold} \
                 --out-sites-hail-table {output.variant_ht} \
-                --populations {params.populations}
+                --populations {params.populations} \
+                --spark-driver-memory-gb {params.spark_driver_memory_gb} \
+                --spark-executor-memory-gb {params.spark_executor_memory_gb}
         ) &> {log}
         """
 
@@ -279,6 +298,8 @@ rule create_divref_index:
         version=VERSION,
         polars_chunk_size=POLARS_CHUNK_SIZE,
         tmp_dir=TMP_DIR,
+        spark_driver_memory_gb=SPARK_DRIVER_MEMORY_GB,
+        spark_executor_memory_gb=SPARK_EXECUTOR_MEMORY_GB,
     shell:
         """
         (
@@ -289,7 +310,9 @@ rule create_divref_index:
                 --output-base {params.output_base} \
                 --version {params.version} \
                 --polars-chunk-size {params.polars_chunk_size} \
-                --tmp-dir {params.tmp_dir}
+                --tmp-dir {params.tmp_dir} \
+                --spark-driver-memory-gb {params.spark_driver_memory_gb} \
+                --spark-executor-memory-gb {params.spark_executor_memory_gb}
         ) &> {log}
         """
 
