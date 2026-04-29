@@ -21,9 +21,13 @@ This implementation:
 The environment for this analysis is managed using `pixi`.
 Follow the developer [instructions](https://pixi.sh/latest/installation/) to install `pixi`.
 
-The environment and dependencies are automatically created and installed when calling `pixi install` for the first time.
+The environment and dependencies are automatically created and installed by calling `pixi install` or when calling `pixi run` for the first time.
 
-To enable access to Hail tables via the GCS Connector, run `pixi run setup-gcs`.
+To enable access to Hail tables via the GCS Connector, run 
+
+```bash
+pixi run setup-gcs
+```
 
 You will need to log in to GCS before running any of the Hail-dependent tools.
 
@@ -31,11 +35,68 @@ You will need to log in to GCS before running any of the Hail-dependent tools.
 gcloud auth application-default login
 ```
 
-## Source Data
+## Resource Description
 
-### gnomAD 3.1.2 HGDP+1KG individual-level genotypes and sample metadata
+The below statements are from using the [default parameters](workflows/config/config_schema.yml).
 
-[Data description](https://gnomad.broadinstitute.org/news/2021-10-gnomad-v3-1-2-minor-release/)
+### Populations
+
+AFR, AMR, EAS, SAS, NFE
+
+### HGDP_haplotype
+
+Haplotypes are derived from the [gnomAD 3.1.2 HGDP+1KG individual-level phased genotypes](https://gnomad.broadinstitute.org/news/2021-10-gnomad-v3-1-2-minor-release/).
+
+- Individuals are annotated with continental ancestry using [gnomAD labels](https://gnomad.broadinstitute.org/data).
+- Only variants in the HGDP+1KG subset of gnomAD 3.1.2 are considered for inclusion, as variants only present in the full genomes dataset do not have associated phased genotypes.
+- Variants with less than 0.5%AF in the full gnomAD 3.1.2 genomes (n=76,156) dataset in all of the populations are removed.
+- Sets of phased alleles are computed over 100-base-pair windows of the genome, with two passes offset by 50bp so that haplotypes are not split at fixed window boundaries.
+- Duplicate haplotypes produced by the overlapping passes are removed when the DuckDB index is built (after sub-haplotype splitting, see below).
+- For each haplotype, the population with the highest empirical AF is recorded as `max_pop`. The phase ratio is the empirical AF of the haplotype in `max_pop` divided by the empirical AF of the rarest component variant in `max_pop`.
+- The estimated gnomAD haplotype frequency is the phase ratio multiplied by the smallest gnomAD AF among the component variants in `max_pop`.
+- Haplotypes with estimated gnomAD frequency < 0.5% are removed.
+- Haplotypes spanning variants further than or equal to 25bp apart are broken into sub-haplotypes at those gaps. Sub-haplotypes with fewer than two variants are discarded.
+
+**Note** Given the sample size of the HGDP+1KG phased genotypes dataset, there is limited power to detect haplotypes under 1%.
+We have included haplotypes discovered between 0.5% and 1%, but would expect to find more haplotypes in that frequency range with a larger dataset.
+
+### gnomAD_variant
+
+gnomAD variants are derived from the [gnomAD 4.1 joint exomes+genomes sites](https://gnomad.broadinstitute.org/news/2024-04-gnomad-v4-1/).
+
+- Genotypes at variants with less than 0.5% AF in all of the populations are removed.
+
+### Index database and FASTA files
+
+The `HGDP_haplotype` and `gnomAD_variant` data is merged and position-sorted.
+The 25bp sequence context around each haplotype/variant is obtained from the GRCh38 reference genome and exported to FASTA.
+An accompanying DuckDB index database contains all of the input haplotypes/variants, their population AFs, and for haplotypes, the empirical AF and AC.
+
+The FASTA files are intended to be used with tools for guide design and off-target nomination that already accept reference sequences in FASTA format.
+
+#### `sequences` table columns
+
+The primary table in the DuckDB index is the `sequences` table, which has one row per haplotype or single variant.
+
+| Column | Description |
+|---|---|
+| `sequence_id` | Unique identifier of the form `DR-{version}-{index}`. `index` is the global row number assigned in genomic-position order across all contigs. |
+| `sequence` | Sequence string for the haplotype/variant, with `window_size` bp of flanking reference context on each side. |
+| `sequence_length` | Length of `sequence` in bases. |
+| `n_variants` | Number of component variants in this row (`1` for `gnomAD_variant`, `>= 2` for `HGDP_haplotype`). |
+| `contig` | Reference contig (e.g. `chr1`). |
+| `start` | 0-based inclusive start of `sequence` on `contig`: `(first_variant_position − 1) − window_size`. |
+| `end` | 0-based exclusive end of `sequence` on `contig`: `(last_variant_position − 1 + length(ref_allele)) + window_size`. |
+| `source` | `HGDP_haplotype` or `gnomAD_variant`. |
+| `max_pop` | Population code with the highest empirical AF for this haplotype/variant. |
+| `popmax_empirical_AF` | For `HGDP_haplotype`: empirical AF of the haplotype in `max_pop` from observed phased genotypes. For `gnomAD_variant`: the gnomAD AF in `max_pop`. |
+| `popmax_empirical_AC` | Allele count corresponding to `popmax_empirical_AF`. |
+| `estimated_gnomad_AF` | For `HGDP_haplotype`: `fraction_phased x min(gnomAD_AF[component, max_pop])` over the component variants — i.e. the phase ratio applied to the rarest component's gnomAD AF in `max_pop`. For `gnomAD_variant`: the gnomAD AF in `max_pop`. |
+| `fraction_phased` | For `HGDP_haplotype`: phase ratio, `popmax_empirical_AF / min(empirical_AF[component, max_pop])` — empirical haplotype AF over empirical AF of the rarest component variant in the same population. `1.0` for `gnomAD_variant`. |
+| `variants` | Comma-separated list of component variants in `chr:pos:ref:alt` form, in the order they appear in the haplotype. |
+| `gnomAD_AF_{POP}` | One column per configured population (e.g. `gnomAD_AF_AFR`). Comma-separated per-component gnomAD AFs in that population, in the same order as `variants`, formatted to 5 decimal places. |
+
+The DuckDB file also contains three single-row metadata tables: `window_size` (the flanking context size used), `pops_legend` (JSON-encoded ordered population list), and `VERSION`.
 
 ## Analysis
 
