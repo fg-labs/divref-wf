@@ -49,6 +49,7 @@ def create_duckdb_index(  # noqa: C901
     polars_chunk_size: int = 100_000,
     retain_per_contig_tsvs: bool = False,
     force: bool = False,
+    spark_memory_gb: int = 16,
 ) -> None:
     """
     Convert per-chr haplotype and gnomAD variant Hail tables into a searchable DuckDB index.
@@ -78,6 +79,7 @@ def create_duckdb_index(  # noqa: C901
         retain_per_contig_tsvs: If True, write per-contig TSVs alongside the duckdb output rather
             than into `tmp_dir`.
         force: If True, overwrite an existing duckdb output. Otherwise raise FileExistsError.
+        spark_memory_gb: Memory in GB to allocate to both the Spark driver and executor.
     """
     assert_path_is_readable(in_table_pairs_tsv)
     assert_path_is_readable(reference_fasta)
@@ -111,7 +113,9 @@ def create_duckdb_index(  # noqa: C901
         for tsv_path in per_contig_tsvs.values():
             assert_path_is_writable(tsv_path)
 
-    os.environ["PYSPARK_SUBMIT_ARGS"] = "--driver-memory 16g --executor-memory 16g pyspark-shell"
+    os.environ["PYSPARK_SUBMIT_ARGS"] = (
+        f"--driver-memory {spark_memory_gb}g --executor-memory {spark_memory_gb}g pyspark-shell"
+    )
     hl.init(tmp_dir=str(tmp_dir))
 
     pops_legend: list[str] = hl.read_table(str(table_pairs[0].sites_table_path)).pops.collect()[0]
