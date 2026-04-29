@@ -198,16 +198,22 @@ def build_hgdp_haplotype_table_entries(
         Hail table with added sequences and variant strings.
     """
     # Read the table and remove keys
-    ht = hl.read_table(str(haplotypes_table_path)).key_by()
+    ht = hl.read_table(str(haplotypes_table_path)).distinct().key_by()
     count_orig: int = ht.count()
     logger.info(f"Haplotype table {haplotypes_table_path} contains {count_orig} unique haplotypes.")
 
     # Split haplotypes by window size
     ht = split_haplotypes(ht, window_size)
-    ht = ht.key_by("haplotype").distinct().key_by().drop("haplotype")
     count_after_splitting: int = ht.count()
     logger.info(
-        f"{count_after_splitting} unique haplotypes remaining after splitting at "
+        f"{count_after_splitting} haplotypes remaining after splitting at "
+        f"window size {window_size}"
+    )
+
+    ht = ht.key_by("haplotype").distinct().key_by().drop("haplotype")
+    count_unique_after_splitting: int = ht.count()
+    logger.info(
+        f"{count_unique_after_splitting} unique haplotypes remaining after splitting at "
         f"window size {window_size}"
     )
 

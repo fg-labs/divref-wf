@@ -270,7 +270,7 @@ rule create_table_pairs_tsv:
             chrom=CHROMS,
         ),
     output:
-        tsv=f"{WORK_DIR}/inputs/hgdp_1kg.table_pairs.tsv",
+        tsv=f"{WORK_DIR}/inputs/table_pairs.tsv",
     run:
         with open(output.tsv, "w") as f:
             f.write("contig\thaplotype_table_path\tsites_table_path\n")
@@ -285,7 +285,7 @@ rule create_table_pairs_tsv:
 ####################################################################################################
 rule create_divref_index:
     input:
-        table_pairs_tsv=f"{WORK_DIR}/inputs/hgdp_1kg.table_pairs.tsv",
+        table_pairs_tsv=f"{WORK_DIR}/inputs/table_pairs.tsv",
         fasta=f"{WORK_DIR}/inputs/{REFERENCE_GENOME}.fasta",
         fai=f"{WORK_DIR}/inputs/{REFERENCE_GENOME}.fai",
     output:

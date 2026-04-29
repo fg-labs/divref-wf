@@ -136,7 +136,7 @@ properties:
     description: |
       Memory in GB to allocate to the Spark driver for Hail-using divref tools (e.g.
       `extract-gnomad-afs`, `compute-haplotypes`, `create-duckdb-index`).
-    default: 4
+    default: 16
 
   spark_executor_memory_gb:
     type: integer
