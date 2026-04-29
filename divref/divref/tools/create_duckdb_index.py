@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -110,6 +111,7 @@ def create_duckdb_index(  # noqa: C901
         for tsv_path in per_contig_tsvs.values():
             assert_path_is_writable(tsv_path)
 
+    os.environ["PYSPARK_SUBMIT_ARGS"] = "--driver-memory 16g --executor-memory 16g pyspark-shell"
     hl.init(tmp_dir=str(tmp_dir))
 
     pops_legend: list[str] = hl.read_table(str(table_pairs[0].sites_table_path)).pops.collect()[0]
