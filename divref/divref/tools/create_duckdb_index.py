@@ -36,7 +36,7 @@ class TablePair(Metric):
     sites_table_path: Path
 
 
-def create_duckdb_index(
+def create_duckdb_index(  # noqa: C901
     *,
     in_table_pairs_tsv: Path,
     reference_fasta: Path,
