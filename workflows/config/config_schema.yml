@@ -130,5 +130,21 @@ properties:
     description: Path to the temporary files directory.
     default: /tmp
 
+  spark_driver_memory_gb:
+    type: integer
+    minimum: 1
+    description: |
+      Memory in GB to allocate to the Spark driver for Hail-using divref tools (e.g.
+      `extract-gnomad-afs`, `compute-haplotypes`, `create-duckdb-index`).
+    default: 16
+
+  spark_executor_memory_gb:
+    type: integer
+    minimum: 1
+    description: |
+      Memory in GB to allocate to the Spark executor for Hail-using divref tools. (e.g.
+      `extract-gnomad-afs`, `compute-haplotypes`, `create-duckdb-index`).
+    default: 16
+
 required:
   - version

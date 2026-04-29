@@ -49,6 +49,8 @@ def create_duckdb_index(  # noqa: C901
     polars_chunk_size: int = 100_000,
     retain_per_contig_tsvs: bool = False,
     force: bool = False,
+    spark_driver_memory_gb: int = 1,
+    spark_executor_memory_gb: int = 1,
 ) -> None:
     """
     Convert per-chr haplotype and gnomAD variant Hail tables into a searchable DuckDB index.
@@ -78,11 +80,22 @@ def create_duckdb_index(  # noqa: C901
         retain_per_contig_tsvs: If True, write per-contig TSVs alongside the duckdb output rather
             than into `tmp_dir`.
         force: If True, overwrite an existing duckdb output. Otherwise raise FileExistsError.
+        spark_driver_memory_gb: Memory in GB to allocate to the Spark driver.
+        spark_executor_memory_gb: Memory in GB to allocate to the Spark executor.
     """
     assert_path_is_readable(in_table_pairs_tsv)
     assert_path_is_readable(reference_fasta)
     assert_path_is_readable(reference_fasta.with_suffix(".fai"))
     assert_directory_exists(tmp_dir)
+
+    if spark_driver_memory_gb < 1:
+        raise ValueError(
+            f"Spark driver memory must be at least 1GB. Saw {spark_driver_memory_gb}GB."
+        )
+    if spark_executor_memory_gb < 1:
+        raise ValueError(
+            f"Spark executor memory must be at least 1GB. Saw {spark_executor_memory_gb}GB."
+        )
 
     out_duckdb_file: Path = Path(f"{str(output_base)}.haplotypes_gnomad_merge.index.duckdb")
     if out_duckdb_file.exists():
@@ -111,7 +124,11 @@ def create_duckdb_index(  # noqa: C901
         for tsv_path in per_contig_tsvs.values():
             assert_path_is_writable(tsv_path)
 
-    os.environ["PYSPARK_SUBMIT_ARGS"] = "--driver-memory 16g --executor-memory 16g pyspark-shell"
+    os.environ["PYSPARK_SUBMIT_ARGS"] = (
+        f"--driver-memory {spark_driver_memory_gb}g "
+        f"--executor-memory {spark_executor_memory_gb}g "
+        "pyspark-shell"
+    )
     hl.init(tmp_dir=str(tmp_dir))
 
     pops_legend: list[str] = hl.read_table(str(table_pairs[0].sites_table_path)).pops.collect()[0]
@@ -181,16 +198,21 @@ def build_hgdp_haplotype_table_entries(
         Hail table with added sequences and variant strings.
     """
     # Read the table and remove keys
-    ht = hl.read_table(str(haplotypes_table_path)).key_by()
+    ht = hl.read_table(str(haplotypes_table_path)).distinct().key_by()
     count_orig: int = ht.count()
     logger.info(f"Haplotype table {haplotypes_table_path} contains {count_orig} unique haplotypes.")
 
     # Split haplotypes by window size
     ht = split_haplotypes(ht, window_size)
-    ht = ht.key_by("haplotype").distinct().key_by().drop("haplotype")
     count_after_splitting: int = ht.count()
     logger.info(
-        f"{count_after_splitting} unique haplotypes remaining after splitting at "
+        f"{count_after_splitting} haplotypes remaining after splitting at window size {window_size}"
+    )
+
+    ht = ht.key_by("haplotype").distinct().key_by().drop("haplotype")
+    count_unique_after_splitting: int = ht.count()
+    logger.info(
+        f"{count_unique_after_splitting} unique haplotypes remaining after splitting at "
         f"window size {window_size}"
     )
 

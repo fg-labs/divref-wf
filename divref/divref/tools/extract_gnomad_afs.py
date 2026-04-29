@@ -20,6 +20,8 @@ def extract_gnomad_afs(
     populations: list[str] = defaults.POPULATIONS,
     reference_genome: str = defaults.REFERENCE_GENOME,
     gcs_credentials_path: Path = Path("~/.config/gcloud/application_default_credentials.json"),
+    spark_driver_memory_gb: int = 1,
+    spark_executor_memory_gb: int = 1,
 ) -> None:
     """
     Extract gnomAD variant and sample frequency data for downstream pipeline tools.
@@ -36,10 +38,16 @@ def extract_gnomad_afs(
         populations: List of population codes to extract frequencies for.
         reference_genome: Reference genome to use. Defaults to "GRCh38".
         gcs_credentials_path: Path to GCS default credentials JSON file.
+        spark_driver_memory_gb: Memory in GB to allocate to the Spark driver.
+        spark_executor_memory_gb: Memory in GB to allocate to the Spark executor.
     """
     assert_path_is_writable(out_variant_annotation_table)
 
-    hail_init(gcs_credentials_path.expanduser())
+    hail_init(
+        gcs_credentials_path.expanduser(),
+        spark_driver_memory_gb=spark_driver_memory_gb,
+        spark_executor_memory_gb=spark_executor_memory_gb,
+    )
 
     va_all = hl.read_table(in_gnomad_sites_table)
     interval = hl.parse_locus_interval(contig, reference_genome=reference_genome)

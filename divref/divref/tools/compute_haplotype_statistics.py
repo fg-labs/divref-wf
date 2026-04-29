@@ -1,5 +1,6 @@
 """Tool to compute haplotype and gnomAD variant statistics across parameter combinations."""
 
+import os
 from pathlib import Path
 
 import hail as hl
@@ -33,6 +34,8 @@ def compute_haplotype_statistics(
     window_sizes: list[int],
     frequency_cutoffs: list[float],
     output_base: Path,
+    spark_driver_memory_gb: int = 1,
+    spark_executor_memory_gb: int = 1,
 ) -> None:
     """
     Compute haplotype and gnomAD variant statistics across frequency and window size parameters.
@@ -51,6 +54,8 @@ def compute_haplotype_statistics(
             (e.g. --frequency-cutoffs 0.001 0.005 0.01).
         output_base: Base path for output TSV files; writes {output_base}.hgdp.tsv
             and {output_base}.gnomad.tsv.
+        spark_driver_memory_gb: Memory in GB to allocate to the Spark driver.
+        spark_executor_memory_gb: Memory in GB to allocate to the Spark executor.
     """
     assert_directory_exists(haplotypes_table_path)
     assert_directory_exists(gnomad_va_file)
@@ -60,6 +65,20 @@ def compute_haplotype_statistics(
     assert_path_is_writable(out_hgdp)
     assert_path_is_writable(out_gnomad)
 
+    if spark_driver_memory_gb < 1:
+        raise ValueError(
+            f"Spark driver memory must be at least 1GB. Saw {spark_driver_memory_gb}GB."
+        )
+    if spark_executor_memory_gb < 1:
+        raise ValueError(
+            f"Spark executor memory must be at least 1GB. Saw {spark_executor_memory_gb}GB."
+        )
+
+    os.environ["PYSPARK_SUBMIT_ARGS"] = (
+        f"--driver-memory {spark_driver_memory_gb}g "
+        f"--executor-memory {spark_executor_memory_gb}g "
+        "pyspark-shell"
+    )
     hl.init()
 
     ht = hl.read_table(str(haplotypes_table_path)).key_by()
