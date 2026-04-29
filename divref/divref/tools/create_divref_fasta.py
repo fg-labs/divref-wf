@@ -39,13 +39,18 @@ def create_divref_fasta(
     if len(contigs) == 0:
         raise ValueError("Contig list must be provided.")
 
+    # Validate all output paths before processing
+    out_paths: dict[str, Path] = {
+        contig: Path(f"{output_base}.{contig}.fasta") for contig in contigs
+    }
+    for out_path in out_paths.values():
+        assert_path_is_writable(out_path)
+
     with duckdb.connect(str(duckdb_path), read_only=True) as conn:
         for contig in contigs:
-            out_path = Path(f"{output_base}.{contig}.fasta")
-            assert_path_is_writable(out_path)
-            logger.info(f"Creating FASTA for chromosome {contig} at {out_path}")
+            logger.info(f"Creating FASTA for chromosome {contig} at {out_paths[contig]}")
             rows_written: int = 0
-            with out_path.open("w") as fh:
+            with out_paths[contig].open("w") as fh:
                 for df in iter_sequence_chunks(
                     conn=conn, contig=contig, chunk_size=polars_chunk_size
                 ):
@@ -54,7 +59,8 @@ def create_divref_fasta(
                     rows_written += df.height
             if rows_written == 0:
                 logger.warning(
-                    f"No sequences found for contig {contig}; wrote empty FASTA at {out_path}"
+                    f"No sequences found for contig {contig}; wrote empty FASTA at "
+                    f"{out_paths[contig]}"
                 )
             else:
                 logger.info(f"Wrote {rows_written} sequences for {contig}")
