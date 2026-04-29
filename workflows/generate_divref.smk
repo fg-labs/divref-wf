@@ -189,7 +189,7 @@ rule extract_gnomad_variant_afs:
         """
         (
             divref extract-gnomad-single-afs \
-                --in-gnomad-version {params.gnomad_source} \
+                --gnomad-version {params.gnomad_source} \
                 --contig {wildcards.chrom} \
                 --freq-threshold {params.freq_threshold} \
                 --out-sites-hail-table {output.variant_ht} \
