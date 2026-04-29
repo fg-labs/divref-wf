@@ -40,6 +40,7 @@ HGDP_1KG_MIN_POP_HAPLOTYPE_AF: float = config["hgdp_1kg_min_estimated_gnomad_hap
 HGDP_1KG_HAPLOTYPE_WINDOW_SIZE: int = config["hgdp_1kg_haplotype_window_size"]
 
 SEQUENCE_WINDOW_SIZE: int = config["sequence_window_size"]
+POLARS_CHUNK_SIZE: int = config["polars_chunk_size"]
 
 VCF_EXTS: list[str] = [".vcf.gz", ".vcf.gz.tbi"]
 
@@ -246,6 +247,7 @@ rule create_divref_index:
         window_size=SEQUENCE_WINDOW_SIZE,
         output_base=f"{WORK_DIR}/output/hgdp_1kg",
         version=VERSION,
+        polars_chunk_size=POLARS_CHUNK_SIZE,
         tmp_dir=TMP_DIR,
     shell:
         """
@@ -256,6 +258,7 @@ rule create_divref_index:
                 --window-size {params.window_size} \
                 --output-base {params.output_base} \
                 --version {params.version} \
+                --polars-chunk-size {params.polars_chunk_size} \
                 --tmp-dir {params.tmp_dir}
         ) &> {log}
         """

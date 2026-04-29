@@ -32,3 +32,6 @@
 # Snakemake workflow related files
 logs/
 data/
+
+# Scratch data
+scratch/
