@@ -59,7 +59,7 @@ properties:
     maximum: 1
     description: |
       Minimum variant allele frequency for at least one selected population when running
-      `divref extract-gnomad-afs` and `divref compute-haplotypes`. Also applied to 
+      `divref extract-gnomad-afs` and `divref compute-haplotypes`.
     default: 0.005
 
   hgdp_1kg_min_estimated_gnomad_haplotype_allele_freq:
