@@ -96,7 +96,7 @@ properties:
     description: |
       Number of sequence table rows to read from intermediate TSV file and insert into database at a
       time. Recommended maximum 1,000,000 for typical laptop.
-    defualt: 500000
+    default: 100000
 
   work_dir:
     type: string

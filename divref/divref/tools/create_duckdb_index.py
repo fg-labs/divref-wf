@@ -45,7 +45,7 @@ def create_duckdb_index(
     version: str,
     reference_genome: str = defaults.REFERENCE_GENOME,
     tmp_dir: Path = Path("/tmp"),
-    polars_chunk_size: int = 500_000,
+    polars_chunk_size: int = 100_000,
     retain_per_contig_tsvs: bool = False,
     force: bool = False,
 ) -> None:
