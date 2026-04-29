@@ -170,7 +170,7 @@ def build_gnomad_variant_table_entries(sites_table_path: Path) -> hl.Table:
 
     va = va.rename({"pop_freqs": "gnomad_freqs"})
     va = va.key_by()
-    argmax_pop = hl.argmax(va.gnomad_freqs.map(lambda x: hl.max(x.AF)))
+    argmax_pop = hl.argmax(va.gnomad_freqs.map(lambda x: x.AF))
     va = va.select(
         max_pop=argmax_pop,
         max_empirical_AF=va.gnomad_freqs[argmax_pop].AF,
