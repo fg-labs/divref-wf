@@ -35,19 +35,11 @@ HGDP_1KG_PHASED_BCF_PREFIX: str = config["hgdp_1kg_phased_bcf_prefix"]
 HGDP_1KG_PHASED_BCF_SUFFIX: str = config["hgdp_1kg_phased_bcf_suffix"]
 HGDP_1KG_VARIANT_ANNOTATION_HAIL_TABLE: str = config["hgdp_1kg_variant_annotation_hail_table"]
 HGDP_1KG_SAMPLE_METADATA_HAIL_TABLE: str = config["hgdp_1kg_sample_metadata_hail_table"]
-HGDP_1KG_MIN_POP_AF_EXTRACT_GNOMAD_AFS: float = config["hgdp_1kg_min_pop_af_extract_gnomad_afs"]
+HGDP_1KG_MIN_POP_VARIANT_AF: float = config["hgdp_1kg_min_pop_variant_allele_freq"]
+HGDP_1KG_MIN_POP_HAPLOTYPE_AF: float = config["hgdp_1kg_min_estimated_gnomad_haplotype_allele_freq"]
 HGDP_1KG_HAPLOTYPE_WINDOW_SIZE: int = config["hgdp_1kg_haplotype_window_size"]
-HGDP_1KG_MIN_POP_AF_COMPUTE_HAPLOTYPES: float = config["hgdp_1kg_min_pop_af_compute_haplotypes"]
-HGDP_1KG_MIN_EST_GNOMAD_HAPLOTYPE_AF: float = config["hgdp_1kg_min_estimated_gnomad_haplotype_af"]
 
 SEQUENCE_WINDOW_SIZE: int = config["sequence_window_size"]
-
-if HGDP_1KG_MIN_POP_AF_EXTRACT_GNOMAD_AFS > HGDP_1KG_MIN_POP_AF_COMPUTE_HAPLOTYPES:
-    raise ValueError(
-        f"hgdp_1kg_min_pop_af_extract_gnomad_afs ({HGDP_1KG_MIN_POP_AF_EXTRACT_GNOMAD_AFS}) "
-        f"must be <= hgdp_1kg_min_pop_af_compute_haplotypes "
-        f"({HGDP_1KG_MIN_POP_AF_COMPUTE_HAPLOTYPES})"
-    )
 
 VCF_EXTS: list[str] = [".vcf.gz", ".vcf.gz.tbi"]
 
@@ -58,9 +50,9 @@ VCF_EXTS: list[str] = [".vcf.gz", ".vcf.gz.tbi"]
 
 rule all:
     input:
-        expand(f"{WORK_DIR}/output/hgdp_1kg.haplotypes.{{chrom}}.haplotypes.fasta", chrom=CHROMS),
+        f"{WORK_DIR}/output/hgdp_1kg.haplotypes_gnomad_merge.index.duckdb",
         expand(
-            f"{WORK_DIR}/output/hgdp_1kg.haplotypes.{{chrom}}.haplotypes.index.duckdb",
+            f"{WORK_DIR}/output/hgdp_1kg.haplotypes_gnomad_merge.{{chrom}}.fasta",
             chrom=CHROMS,
         ),
 
@@ -104,7 +96,7 @@ rule extract_gnomad_afs:
         "logs/generate_divref/extract_gnomad_afs.{chrom}.log",
     params:
         variant_ht=HGDP_1KG_VARIANT_ANNOTATION_HAIL_TABLE,
-        freq_threshold=HGDP_1KG_MIN_POP_AF_EXTRACT_GNOMAD_AFS,
+        freq_threshold=HGDP_1KG_MIN_POP_VARIANT_AF,
         populations=" ".join(POPS),
     shell:
         """
@@ -154,8 +146,8 @@ rule compute_haplotypes:
         "logs/generate_divref/compute_haplotypes.{chrom}.log",
     params:
         window_size=HGDP_1KG_HAPLOTYPE_WINDOW_SIZE,
-        variant_freq_threshold=HGDP_1KG_MIN_POP_AF_COMPUTE_HAPLOTYPES,
-        haplotype_freq_threshold=HGDP_1KG_MIN_EST_GNOMAD_HAPLOTYPE_AF,
+        variant_freq_threshold=HGDP_1KG_MIN_POP_VARIANT_AF,
+        haplotype_freq_threshold=HGDP_1KG_MIN_POP_HAPLOTYPE_AF,
         output_base=f"{WORK_DIR}/haplotypes/hgdp_1kg.haplotypes.{{chrom}}",
     shell:
         """
@@ -215,36 +207,80 @@ rule index_reference_genome:
 
 
 ####################################################################################################
-# Create the DivRef per-chromosome FASTAs and indexes.
+# Writes a TSV listing per-chromosome haplotype and gnomAD sites Hail tables for the index builder.
 ####################################################################################################
-rule create_fasta_and_index:
+rule create_table_pairs_tsv:
     input:
-        haplotypes_ht=f"{WORK_DIR}/haplotypes/hgdp_1kg.haplotypes.{{chrom}}.ht",
-        variant_ht=f"{WORK_DIR}/inputs/hgdp_1kg.sites.{{chrom}}.ht",
+        haplotypes_hts=expand(
+            f"{WORK_DIR}/haplotypes/hgdp_1kg.haplotypes.{{chrom}}.ht",
+            chrom=CHROMS,
+        ),
+        sites_hts=expand(
+            f"{WORK_DIR}/inputs/hgdp_1kg.sites.{{chrom}}.ht",
+            chrom=CHROMS,
+        ),
+    output:
+        tsv=f"{WORK_DIR}/inputs/hgdp_1kg.table_pairs.tsv",
+    run:
+        with open(output.tsv, "w") as f:
+            f.write("contig\thaplotype_table_path\tsites_table_path\n")
+            for chrom in CHROMS:
+                haplotype_ht = f"{WORK_DIR}/haplotypes/hgdp_1kg.haplotypes.{chrom}.ht"
+                sites_ht = f"{WORK_DIR}/inputs/hgdp_1kg.sites.{chrom}.ht"
+                f.write(f"{chrom}\t{haplotype_ht}\t{sites_ht}\n")
+
+
+####################################################################################################
+# Build the DivRef DuckDB index from all per-chromosome haplotype and gnomAD sites Hail tables.
+####################################################################################################
+rule create_divref_index:
+    input:
+        table_pairs_tsv=f"{WORK_DIR}/inputs/hgdp_1kg.table_pairs.tsv",
         fasta=f"{WORK_DIR}/inputs/{REFERENCE_GENOME}.fasta",
         fai=f"{WORK_DIR}/inputs/{REFERENCE_GENOME}.fai",
     output:
-        fasta=f"{WORK_DIR}/output/hgdp_1kg.haplotypes.{{chrom}}.haplotypes.fasta",
-        duckdb_index=f"{WORK_DIR}/output/hgdp_1kg.haplotypes.{{chrom}}.haplotypes.index.duckdb",
+        duckdb=f"{WORK_DIR}/output/hgdp_1kg.haplotypes_gnomad_merge.index.duckdb",
     log:
-        "logs/generate_divref/create_fasta_and_index.{chrom}.log",
+        "logs/generate_divref/create_divref_index.log",
     params:
         window_size=SEQUENCE_WINDOW_SIZE,
-        output_base=f"{WORK_DIR}/output/hgdp_1kg.haplotypes.{{chrom}}",
+        output_base=f"{WORK_DIR}/output/hgdp_1kg",
         version=VERSION,
-        freq_threshold=HGDP_1KG_MIN_EST_GNOMAD_HAPLOTYPE_AF,
         tmp_dir=TMP_DIR,
     shell:
         """
         (
-            divref create-fasta-and-index \
-                --haplotypes-table-path {input.haplotypes_ht} \
-                --gnomad-va-file {input.variant_ht} \
+            divref create-duckdb-index \
+                --in-table-pairs-tsv {input.table_pairs_tsv} \
                 --reference-fasta {input.fasta} \
                 --window-size {params.window_size} \
                 --output-base {params.output_base} \
-                --version-str {params.version} \
-                --frequency-cutoff {params.freq_threshold} \
+                --version {params.version} \
                 --tmp-dir {params.tmp_dir}
+        ) &> {log}
+        """
+
+
+####################################################################################################
+# Write per-chromosome FASTA files from the DivRef DuckDB index.
+####################################################################################################
+rule create_divref_fasta:
+    input:
+        duckdb=f"{WORK_DIR}/output/hgdp_1kg.haplotypes_gnomad_merge.index.duckdb",
+    output:
+        fastas=expand(
+            f"{WORK_DIR}/output/hgdp_1kg.haplotypes_gnomad_merge.{{chrom}}.fasta",
+            chrom=CHROMS,
+        ),
+    log:
+        "logs/generate_divref/create_divref_fasta.log",
+    params:
+        output_base=f"{WORK_DIR}/output/hgdp_1kg.haplotypes_gnomad_merge",
+    shell:
+        """
+        (
+            divref create-divref-fasta \
+                --duckdb-path {input.duckdb} \
+                --output-base {params.output_base}
         ) &> {log}
         """

@@ -8,7 +8,8 @@ import defopt
 from divref.tools.compute_haplotype_statistics import compute_haplotype_statistics
 from divref.tools.compute_haplotypes import compute_haplotypes
 from divref.tools.compute_variation_ratios import compute_variation_ratios
-from divref.tools.create_fasta_and_index import create_fasta_and_index
+from divref.tools.create_divref_fasta import create_divref_fasta
+from divref.tools.create_duckdb_index import create_duckdb_index
 from divref.tools.create_gnomad_sites_vcf import create_gnomad_sites_vcf
 from divref.tools.extract_gnomad_afs import extract_gnomad_afs
 from divref.tools.extract_gnomad_single_afs import extract_gnomad_single_afs
@@ -20,7 +21,8 @@ _tools: List[Callable[..., None]] = [
     compute_haplotypes,
     compute_haplotype_statistics,
     compute_variation_ratios,
-    create_fasta_and_index,
+    create_duckdb_index,
+    create_divref_fasta,
     create_gnomad_sites_vcf,
     extract_gnomad_afs,
     extract_gnomad_single_afs,
