@@ -39,6 +39,10 @@ HGDP_1KG_MIN_POP_VARIANT_AF: float = config["hgdp_1kg_min_pop_variant_allele_fre
 HGDP_1KG_MIN_POP_HAPLOTYPE_AF: float = config["hgdp_1kg_min_estimated_gnomad_haplotype_allele_freq"]
 HGDP_1KG_HAPLOTYPE_WINDOW_SIZE: int = config["hgdp_1kg_haplotype_window_size"]
 
+# gnomAD variants can be from a different source than the haplotypes
+GNOMAD_VARIANT_ANNOTATION_SOURCE: str = config["gnomad_variant_annotation_source"]
+GNOMAD_VARIANT_MIN_POP_VARIANT_AF: float = config["gnomad_variant_min_pop_variant_allele_freq"]
+
 SEQUENCE_WINDOW_SIZE: int = config["sequence_window_size"]
 POLARS_CHUNK_SIZE: int = config["polars_chunk_size"]
 
@@ -169,6 +173,32 @@ rule compute_haplotypes:
 
 
 ####################################################################################################
+# Extracts allele frequencies from the gnomAD sites table for the given populations and subsets to
+# sites over the specified minimum allele frequency in at least one population.
+####################################################################################################
+rule extract_gnomad_variant_afs:
+    output:
+        variant_ht=directory(f"{WORK_DIR}/inputs/gnomad.sites.{{chrom}}.ht"),
+    log:
+        "logs/generate_divref/extract_gnomad_variant_afs.{chrom}.log",
+    params:
+        gnomad_source=GNOMAD_VARIANT_ANNOTATION_SOURCE,
+        freq_threshold=GNOMAD_VARIANT_MIN_POP_VARIANT_AF,
+        populations=" ".join(POPS),
+    shell:
+        """
+        (
+            divref extract-gnomad-single-afs \
+                --in-gnomad-version {params.gnomad_source} \
+                --contig {wildcards.chrom} \
+                --freq-threshold {params.freq_threshold} \
+                --out-sites-hail-table {output.variant_ht} \
+                --populations {params.populations} \
+        ) &> {log}
+        """
+
+
+####################################################################################################
 # Downloads and unzips the reference genome.
 ####################################################################################################
 rule download_reference_genome:
@@ -217,7 +247,7 @@ rule create_table_pairs_tsv:
             chrom=CHROMS,
         ),
         sites_hts=expand(
-            f"{WORK_DIR}/inputs/hgdp_1kg.sites.{{chrom}}.ht",
+            f"{WORK_DIR}/inputs/gnomad.sites.{{chrom}}.ht",
             chrom=CHROMS,
         ),
     output:
@@ -227,7 +257,7 @@ rule create_table_pairs_tsv:
             f.write("contig\thaplotype_table_path\tsites_table_path\n")
             for chrom in CHROMS:
                 haplotype_ht = f"{WORK_DIR}/haplotypes/hgdp_1kg.haplotypes.{chrom}.ht"
-                sites_ht = f"{WORK_DIR}/inputs/hgdp_1kg.sites.{chrom}.ht"
+                sites_ht = f"{WORK_DIR}/inputs/gnomad.sites.{chrom}.ht"
                 f.write(f"{chrom}\t{haplotype_ht}\t{sites_ht}\n")
 
 

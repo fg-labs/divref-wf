@@ -77,6 +77,27 @@ properties:
     description: Window size in bp for grouping variants into haplotypes.
     default: 100
 
+  gnomad_variant_annotation_source:
+    type: string
+    description: |
+      Source of the gnomAD variant annotations Hail table. Supported options:
+      JOINT_41 = v4.1 joint exomes (730K) + genomes (76K)
+        gs://gcp-public-data--gnomad/release/4.1/ht/joint/gnomad.joint.v4.1.sites.ht
+      GENOMES_312 = v3.1.2 genomes (76K)
+        gs://gcp-public-data--gnomad/release/3.1.2/ht/genomes/gnomad.genomes.v3.1.2.sites.ht
+      HGDP_1KG_312 = v3.1.2 HGDP+1KG subset genomes (4K, uses frequencies from genomes 76K)
+        gs://gcp-public-data--gnomad/release/3.1.2/ht/genomes/gnomad.genomes.v3.1.2.hgdp_1kg_subset_variant_annotations.ht
+    default: "JOINT_41"
+
+  gnomad_variant_min_pop_variant_allele_freq:
+    type: number
+    minimum: 0
+    maximum: 1
+    description: |
+      Minimum variant allele frequency for at least one selected population when running
+      `divref extract-gnomad-single-afs`.
+    default: 0.005
+
   sequence_window_size:
     type: integer
     description: |
