@@ -142,6 +142,9 @@ def create_duckdb_index(
                 contig_rows += df.height
                 sequence_id_offset += df.height
 
+            if not retain_per_contig_tsvs and contig_tsv.exists():
+                contig_tsv.unlink()
+
             logger.info(
                 f"Appended {contig_rows} rows for contig {table_pair.contig} "
                 f"(running total: {sequence_id_offset})"
