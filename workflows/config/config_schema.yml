@@ -90,6 +90,14 @@ properties:
     description: Version identifier for output resource.
     example: 1.0
 
+  polars_chunk_size:
+    type: integer
+    minimum: 10000
+    description: |
+      Number of sequence table rows to read from intermediate TSV file and insert into database at a
+      time. Recommended maximum 1,000,000 for typical laptop.
+    defualt: 500000
+
   work_dir:
     type: string
     description: Path to the working directory for intermediate files.
