@@ -59,7 +59,7 @@ def compute_variation_ratios(
         )
     if spark_executor_memory_gb < 1:
         raise ValueError(
-            f"Spark driver memory must be at least 1GB. Saw {spark_driver_memory_gb}GB."
+            f"Spark executor memory must be at least 1GB. Saw {spark_executor_memory_gb}GB."
         )
 
     os.environ["PYSPARK_SUBMIT_ARGS"] = (

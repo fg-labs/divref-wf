@@ -94,7 +94,7 @@ def create_duckdb_index(  # noqa: C901
         )
     if spark_executor_memory_gb < 1:
         raise ValueError(
-            f"Spark driver memory must be at least 1GB. Saw {spark_driver_memory_gb}GB."
+            f"Spark executor memory must be at least 1GB. Saw {spark_executor_memory_gb}GB."
         )
 
     out_duckdb_file: Path = Path(f"{str(output_base)}.haplotypes_gnomad_merge.index.duckdb")
@@ -206,8 +206,7 @@ def build_hgdp_haplotype_table_entries(
     ht = split_haplotypes(ht, window_size)
     count_after_splitting: int = ht.count()
     logger.info(
-        f"{count_after_splitting} haplotypes remaining after splitting at "
-        f"window size {window_size}"
+        f"{count_after_splitting} haplotypes remaining after splitting at window size {window_size}"
     )
 
     ht = ht.key_by("haplotype").distinct().key_by().drop("haplotype")
