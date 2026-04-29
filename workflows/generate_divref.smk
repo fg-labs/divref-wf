@@ -279,11 +279,13 @@ rule create_divref_fasta:
         "logs/generate_divref/create_divref_fasta.log",
     params:
         output_base=f"{WORK_DIR}/output/hgdp_1kg.haplotypes_gnomad_merge",
+        contigs=" ".join(CHROMS),
     shell:
         """
         (
             divref create-divref-fasta \
                 --duckdb-path {input.duckdb} \
-                --output-base {params.output_base}
+                --output-base {params.output_base} \
+                --contigs {params.contigs}
         ) &> {log}
         """
