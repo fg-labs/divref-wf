@@ -150,6 +150,9 @@ def create_duckdb_index(
                 f"(running total: {sequence_id_offset})"
             )
 
+        if not created_table:
+            raise ValueError("No sequence rows were produced; cannot create DuckDB index.")
+
         conn.execute("CREATE INDEX idx_sequence_id ON sequences(sequence_id)")
         conn.execute("CREATE TABLE window_size AS SELECT ? AS window_size", [window_size])
         conn.execute(
