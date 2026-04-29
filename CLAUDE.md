@@ -75,10 +75,17 @@ The tools implement a data pipeline:
 4. `compute_haplotypes` → groups phased variants into haplotype windows using Hail
 5. `compute_haplotype_statistics` → haplotype count distributions
 6. `compute_variation_ratios` → per-sample variant counts at multiple freq thresholds
-7. `create_fasta_and_index` → FASTA sequences + DuckDB index (final deliverable)
-8. `remap_divref` → maps haplotype coordinates back to reference genome (post-CALITAS step)
+7. `create_duckdb_index` → DuckDB index merging haplotype + gnomAD sites Hail tables, with reference-context sequences
+8. `create_divref_fasta` → per-chromosome FASTA files streamed from the DuckDB index (final deliverable)
+9. `remap_divref` → maps haplotype coordinates back to reference genome (post-CALITAS step)
 
-`extract_gnomad_single_afs` is an alternative to `extract_gnomad_afs` supporting both gnomAD v4.1 (JOINT) and v3.1.2 (HGDP+1KG) table schemas.
+Steps 7 and 8 were split out of a single `create_fasta_and_index` tool (PR #39). `create_duckdb_index` writes the index in chunks (PR #42, `--polars-chunk-size`) and `create_divref_fasta` streams FASTA output (PR #43).
+
+`extract_gnomad_single_afs` is an alternative to `extract_gnomad_afs` supporting both gnomAD v4.1 (JOINT) and v3.1.2 (HGDP+1KG) table schemas; it is used when the workflow's `gnomad_variant_annotation_source` config selects a gnomAD source different from the haplotype source (the haplotypes themselves always come from gnomAD 3.1.2 HGDP+1KG phased genotypes).
+
+`gnomad_hail_table_test_data` is a separate tool (registered in `main.py`, but not part of the pipeline) used by `workflows/create_test_data.smk` to generate test-data subsets of gnomAD Hail tables.
+
+Note: `divref/tools/rewrite_fasta.py` is a utility script and is NOT registered in `main.py`.
 
 ### Key Shared Modules
 
@@ -95,7 +102,18 @@ The tools implement a data pipeline:
 
 ### Data Models (`remap_divref.py`)
 
-Pydantic `frozen=True` models: `Variant`, `ReferenceMapping`, `Haplotype` — used for type-safe coordinate remapping. `Haplotype` uses field aliases to match mixedCase column names in the DuckDB index created by `create_fasta_and_index`.
+Pydantic `frozen=True` models: `Variant`, `ReferenceMapping`, `Haplotype` — used for type-safe coordinate remapping. `Haplotype` uses field aliases to match mixedCase column names in the DuckDB index produced by `create_duckdb_index`.
+
+### Snakemake Workflows
+
+- `workflows/generate_divref.smk` — main workflow. Reads `workflows/config/config.yml` (validated against `config_schema.yml`). Per-chromosome rules feed into a single `create_divref_index` rule (one DuckDB) and `create_divref_fasta` rule (per-chromosome FASTAs).
+- `workflows/create_test_data.smk` — generates the gnomAD Hail-table subsets committed under `divref/tests/data/` (used by `pytest`). Run when test inputs need refreshing, not on every test run.
+- `workflows/compare_divref_gnomad.smk` — analysis-only workflow comparing DivRef 1.1 against multiple gnomAD releases (requires the `analysis` pixi environment).
+
+Workflow knobs worth knowing about (in `config.yml`):
+- `gnomad_variant_annotation_source` — selects which gnomAD release the single-variant track is drawn from (drives `extract_gnomad_single_afs`); haplotype track always comes from HGDP+1KG.
+- `polars_chunk_size` — chunk size for the streaming DuckDB index writer.
+- `sequence_window_size` — flanking reference context size around each haplotype/variant in the FASTA output.
 
 ## Git Workflow
 
