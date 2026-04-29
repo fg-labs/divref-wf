@@ -193,7 +193,7 @@ rule extract_gnomad_variant_afs:
                 --contig {wildcards.chrom} \
                 --freq-threshold {params.freq_threshold} \
                 --out-sites-hail-table {output.variant_ht} \
-                --populations {params.populations} \
+                --populations {params.populations}
         ) &> {log}
         """
 

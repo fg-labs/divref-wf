@@ -79,6 +79,7 @@ properties:
 
   gnomad_variant_annotation_source:
     type: string
+    enum: ["JOINT_41", "GENOMES_312", "HGDP_1KG_312"]
     description: |
       Source of the gnomAD variant annotations Hail table. Supported options:
       JOINT_41 = v4.1 joint exomes (730K) + genomes (76K)
