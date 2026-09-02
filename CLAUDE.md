@@ -73,14 +73,14 @@ divref <tool-name> --arg value   # Invokes the registered tool
 The tools implement a data pipeline:
 1. `extract_gnomad_afs` / `extract_gnomad_single_afs` → per-population allele frequency Hail table
 2. `extract_sample_metadata` → simplified sample→population mapping table
-3. `compute_haplotypes` → groups phased variants into haplotype windows using Hail
+3. `compute_haplotypes` → groups phased (or haploid, on chrY non-PAR) variants into haplotype windows using Hail. On chrX non-PAR and chrY non-PAR it applies a haploid-male correction (`_haploid_adjusted_call`, `_carrier_strands`): males contribute a single allele, and chrY keeps `XY` males only. chrY genotypes come from the unphased chrY release VCF (haploid calls need no phasing); that VCF has no records in the PAR regions, so no chrY variant reaching this step is pseudoautosomal.
 4. `init_duckdb_index` → create the DuckDB and write the population-legend + version metadata; then `append_contig_to_duckdb_index` (once per chromosome, each in a fresh JVM) → append that contig's merged haplotype + gnomAD-sites rows with reference-context sequences; then `finalize_duckdb_index` → build the `sequence_id` index. The append step also computes the `haplotype_filter` column (VCF-style: `PASS`, else the `;`-joined sorted flags from `divref/divref/haplotype_compat.py`) flagging haplotypes whose component variants overlap (a phasing artifact, not dropped). `compatibility_flag` classifies every variant pair (not just adjacent ones) into a reason from the `REASONS` taxonomy, then adds the `end_extends_past_rightmost_variant` flag when an earlier long-reference variant reaches past the rightmost one. A co-located SNP+indel is the one genuinely compatible overlap and yields no flag. Correspondingly `haplo_coordinates` sets `end` from the maximum reference end over all variants so a deletion's span is never truncated. `haplotype_filter` flows through `remap_divref` into the final CALITAS TSV.
 5. `create_divref_fasta` → per-chromosome FASTA files streamed from the DuckDB index (final deliverable)
 6. `remap_divref` → maps haplotype coordinates back to reference genome (post-CALITAS step)
 
 Steps 4 and 5 were split out of a single `create_fasta_and_index` tool (PR #39). The index builder (originally `create_duckdb_index`, with chunked writes via `--polars-chunk-size` from PR #42) was later split into per-chromosome `init_duckdb_index` / `append_contig_to_duckdb_index` / `finalize_duckdb_index` so each contig runs in a fresh JVM, bounding file-descriptor use (a single long-lived process exhausted the per-process limit on a whole-genome run); their shared helpers live in `divref/divref/duckdb_index.py`. `create_divref_fasta` streams FASTA output (PR #43).
 
-`extract_gnomad_single_afs` is an alternative to `extract_gnomad_afs` supporting both gnomAD v4.1 (JOINT) and v3.1.2 (HGDP+1KG) table schemas; it is used when the workflow's `gnomad_variant_annotation_source` config selects a gnomAD source different from the haplotype source (the haplotypes themselves always come from gnomAD 3.1.2 HGDP+1KG phased genotypes).
+`extract_gnomad_single_afs` is an alternative to `extract_gnomad_afs` supporting both gnomAD v4.1 (JOINT) and v3.1.2 (HGDP+1KG) table schemas; it is used when the workflow's `gnomad_variant_annotation_source` config selects a gnomAD source different from the haplotype source (the haplotypes themselves always come from gnomAD 3.1.2 HGDP+1KG: phased BCFs for the autosomes and chrX, and the unphased chrY release VCF for chrY).
 
 `gnomad_hail_table_test_data` is a separate tool (registered in `main.py`, but not part of the pipeline) used by `workflows/create_test_data.smk` to generate test-data subsets of gnomAD Hail tables.
 
@@ -112,6 +112,7 @@ Pydantic `frozen=True` models: `Variant`, `ReferenceMapping`, `Haplotype` — us
 
 Workflow knobs worth knowing about (in `config.yml`):
 - `gnomad_variant_annotation_source` — selects which gnomAD release the single-variant track is drawn from (drives `extract_gnomad_single_afs`); haplotype track always comes from HGDP+1KG.
+- `hgdp_1kg_chrY_vcf` — URI of the gnomAD 3.1.2 HGDP+1KG chrY release VCF (unphased); source of the chrY haploid haplotypes.
 - `polars_chunk_size` — chunk size for the streaming DuckDB index writer.
 - `sequence_window_size` — flanking reference context size around each haplotype/variant in the FASTA output.
 
