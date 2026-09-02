@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Install Pixi
-        uses: prefix-dev/setup-pixi@14c8aabd75893f83f4ab30c03e7cf853c8208961  # v0.8.10
+        uses: prefix-dev/setup-pixi@f00437f565399d418b0acc85936d12c1fb668347  # v0.10.1
         with:
           pixi-version: ${{ env.PIXI_VERSION }}
           cache: true
