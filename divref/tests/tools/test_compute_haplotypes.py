@@ -1211,6 +1211,43 @@ def test_compute_haplotypes_chrx_nonpar(
     assert all(len(r.variants) == len(r.haplotype) for r in results)
 
 
+def test_compute_haplotypes_chry_nonpar(
+    hail_context: None,  # noqa: ARG001
+    datadir: Path,
+    tmp_path: Path,
+) -> None:
+    """ChrY non-PAR haplotypes form with haploid carrier counts and fraction_phased ~ 1.0."""
+    in_sites = datadir / "chrY_2900000_2925000.gnomad_afs.ht"
+    in_samples = datadir / "hgdp_1kg_sample_metadata.extract.ht"
+    vcf_path = datadir / "chrY_2900000_2925000.vcf.gz"
+    output_base = tmp_path / "haplos"
+    with patch("divref.tools.compute_haplotypes.hl.init"):
+        compute_haplotypes(
+            vcfs_path=vcf_path,
+            gnomad_va_file=in_sites,
+            gnomad_sa_file=in_samples,
+            window_size=5000,
+            variant_freq_threshold=0.005,
+            haplotype_freq_threshold=0.005,
+            output_base=output_base,
+            temp_dir=tmp_path / "hail_tmp",
+        )
+    result = hl.read_table(f"{output_base}.ht").collect()
+
+    # Exact regression lock on the committed chrY fixture. Counting a male's single chrY twice would
+    # double every empirical AC, so pinning the whole multiset guards the haploid convention.
+    assert len(result) == 10
+    assert sorted(len(r.haplotype) for r in result) == [2, 2, 2, 2, 2, 2, 2, 2, 2, 3]
+    assert all(len(r.variants) == len(r.haplotype) for r in result)
+    assert sorted(r.max_empirical_AC for r in result) == [1, 1, 1, 1, 2, 2, 3, 5, 7, 50]
+
+    # chrY does not recombine, so a haplotype's rarest component is unique to it and every carrier
+    # of it carries the whole haplotype: fraction_phased = AC_hap / AC_component ~ 1.0. This is
+    # independent of the counts above: AC_hap comes from the carrier-strand path and AC_component
+    # from gnomAD call_stats, so a carrier double-count would push the ratio to ~2, not cancel.
+    assert all(abs(r.fraction_phased - 1.0) < 1e-6 for r in result)
+
+
 def test_haploid_adjusted_call_counts_chrx_nonpar_males_once(
     hail_context: None,  # noqa: ARG001
 ) -> None:
