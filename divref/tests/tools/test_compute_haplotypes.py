@@ -651,20 +651,20 @@ class MetricsRow:
     per_pop_ac: list[int]
     # One inner list per variant, each entry is the gnomAD sites AF for that variant in that pop.
     variant_pop_af: list[list[float]]
-    # One inner dict per variant, mapping pop_int -> (AN, local_alt_AF). Local AF is the
-    # HGDP+1KG `call_stats` alt-allele frequency and feeds `min_variant_frequency` /
-    # `fraction_phased`. A pop key absent from the dict for a given variant becomes
-    # `hl.missing` in `frequencies_by_pop` — the production code's `dict.get(p, missing)`
-    # path. To exercise AN=0 explicitly, supply `(0, 0.0)`.
-    variant_pop_fbp: list[dict[int, tuple[int, float]]]
+    # One inner dict per variant, mapping pop_int -> (AN, AC) for the component variant's local
+    # HGDP+1KG `call_stats` in that pop (AF is derived as AC/AN, matching production). AN/AC feed
+    # `min_variant_frequency` / `fraction_phased`. A pop key absent from the dict for a given
+    # variant becomes `hl.missing` in `frequencies_by_pop` — the production code's
+    # `dict.get(p, missing)` path. To exercise AN=0 explicitly, supply `(0, 0)`.
+    variant_pop_fbp: list[dict[int, tuple[int, int]]]
 
 
 def _make_metrics_input_ht(rows: list[MetricsRow]) -> hl.Table:
     """Construct a synthetic hap_table with the schema expected by `_compute_metrics`."""
     freq_type = hl.tstruct(AF=hl.tfloat64)
-    # `frequencies_by_pop` mirrors the `hl.agg.call_stats` schema: AF is a per-allele array
-    # (index 0 = ref, index 1 = first alt). Only the alt entry is read.
-    fbp_value_type = hl.tstruct(AN=hl.tint32, AF=hl.tarray(hl.tfloat64))
+    # `frequencies_by_pop` mirrors the `hl.agg.call_stats` schema: AF and AC are per-allele
+    # arrays (index 0 = ref, index 1 = first alt). Only the alt entry is read.
+    fbp_value_type = hl.tstruct(AN=hl.tint32, AF=hl.tarray(hl.tfloat64), AC=hl.tarray(hl.tint32))
     row_type = hl.tstruct(
         haplotype=hl.tarray(hl.tint64),
         per_pop_AC=hl.tarray(hl.tint64),
@@ -690,7 +690,14 @@ def _make_metrics_input_ht(rows: list[MetricsRow]) -> hl.Table:
             ],
             "gnomad_freqs": [[{"AF": af} for af in afs] for afs in r.variant_pop_af],
             "frequencies_by_pop": [
-                {p: {"AN": an, "AF": [1.0 - alt_af, alt_af]} for p, (an, alt_af) in fbp.items()}
+                {
+                    p: {
+                        "AN": an,
+                        "AC": [an - ac, ac],
+                        "AF": [1.0 - (ac / an if an else 0.0), ac / an if an else 0.0],
+                    }
+                    for p, (an, ac) in fbp.items()
+                }
                 for fbp in r.variant_pop_fbp
             ],
         }
@@ -707,8 +714,8 @@ def test_compute_metrics_single_population(hail_context: None) -> None:  # noqa:
             per_pop_ac=[3],
             # gnomAD-sites AF per variant in pop 0.
             variant_pop_af=[[0.5], [0.4]],
-            # frequencies_by_pop: (AN, local_alt_AF) per variant in pop 0.
-            variant_pop_fbp=[{0: (100, 0.06)}, {0: (200, 0.05)}],
+            # frequencies_by_pop: (AN, AC) per variant in pop 0 (AF = AC/AN = 0.06, 0.05).
+            variant_pop_fbp=[{0: (100, 6)}, {0: (200, 10)}],
         )
     ])
     rows = _compute_metrics(ht, n_pops=1).collect()
@@ -718,19 +725,21 @@ def test_compute_metrics_single_population(hail_context: None) -> None:  # noqa:
     # min_AN over variants for pop 0 = min(100, 200) = 100. AF = 3/100 = 0.03.
     assert row.max_empirical_AF == pytest.approx(0.03)
     assert row.max_empirical_AC == 3
-    # min_variant_frequency = min over variants of LOCAL alt AF in pop 0 = min(0.06, 0.05) = 0.05.
+    # min_variant_frequency = min over variants of LOCAL alt AF in pop 0 = min(0.06, 0.05) = 0.05,
+    # from variant 1 (AN=200, AC=10).
     assert row.min_variant_frequency == pytest.approx(0.05)
-    assert row.fraction_phased == pytest.approx(0.03 / 0.05)
+    # fraction_phased = AC_hap / AC of that variant = 3 / 10 = 0.3.
+    assert row.fraction_phased == pytest.approx(0.3)
     # estimated_gnomad_AF = min over variants of (gnomad_AF * fraction_phased)
-    #                    = min(0.5, 0.4) * 0.6 = 0.4 * 0.6 = 0.24.
-    assert row.estimated_gnomad_AF == pytest.approx(0.4 * 0.03 / 0.05)
+    #                    = min(0.5, 0.4) * 0.3 = 0.4 * 0.3 = 0.12.
+    assert row.estimated_gnomad_AF == pytest.approx(0.4 * 0.3)
     # all_pop_freqs bundles all three per-pop quantities at pop 0.
     assert len(row.all_pop_freqs) == 1
     pop0 = row.all_pop_freqs[0]
     assert pop0.pop == 0
     assert pop0.empirical_AF == pytest.approx(0.03)
-    assert pop0.fraction_phased == pytest.approx(0.03 / 0.05)
-    assert pop0.estimated_gnomad_AF == pytest.approx(0.4 * 0.03 / 0.05)
+    assert pop0.fraction_phased == pytest.approx(0.3)
+    assert pop0.estimated_gnomad_AF == pytest.approx(0.4 * 0.3)
 
 
 def test_compute_metrics_picks_max_population(hail_context: None) -> None:  # noqa: ARG001
@@ -741,7 +750,8 @@ def test_compute_metrics_picks_max_population(hail_context: None) -> None:  # no
             # pop 0: AC=2, AN=200 -> AF=0.01.  pop 1: AC=5, AN=100 -> AF=0.05.  pop 2: AC=0.
             per_pop_ac=[2, 5, 0],
             variant_pop_af=[[0.3, 0.2, 0.1]],
-            variant_pop_fbp=[{0: (200, 0.04), 1: (100, 0.10), 2: (50, 0.02)}],
+            # (AN, AC) per pop; local AF = AC/AN = 0.04, 0.10, 0.02.
+            variant_pop_fbp=[{0: (200, 8), 1: (100, 10), 2: (50, 1)}],
         )
     ])
     rows = _compute_metrics(ht, n_pops=3).collect()
@@ -772,7 +782,8 @@ def test_compute_metrics_zero_an_yields_missing(hail_context: None) -> None:  # 
             # pop 0: AC=1, AN=0 -> AF missing.  pop 1: AC=1, AN=10 -> AF=0.1.
             per_pop_ac=[1, 1],
             variant_pop_af=[[0.5, 0.4]],
-            variant_pop_fbp=[{0: (0, 0.0), 1: (10, 0.20)}],
+            # (AN, AC) per pop; local AF = AC/AN = 0.0 (AN=0, guarded elsewhere), 0.20.
+            variant_pop_fbp=[{0: (0, 0), 1: (10, 2)}],
         )
     ])
     rows = _compute_metrics(ht, n_pops=2).collect()
@@ -802,7 +813,9 @@ def test_compute_metrics_absent_pop_key_skips_variant_in_min(
             haplotype=[0, 1],
             per_pop_ac=[2, 4],
             variant_pop_af=[[0.5, 0.4], [0.6, 0.3]],
-            variant_pop_fbp=[{0: (100, 0.05), 1: (200, 0.10)}, {1: (150, 0.08)}],
+            # (AN, AC) per pop per variant; local AF = AC/AN matches the values in the comment
+            # above (0.05, 0.10, 0.08).
+            variant_pop_fbp=[{0: (100, 5), 1: (200, 20)}, {1: (150, 12)}],
         )
     ])
     rows = _compute_metrics(ht, n_pops=2).collect()
@@ -828,7 +841,7 @@ def test_compute_metrics_tie_breaks_to_smallest_index(
             haplotype=[0],
             per_pop_ac=[1, 1],  # both AC=1 over AN=100 -> AF=0.01 each
             variant_pop_af=[[0.2, 0.2]],
-            variant_pop_fbp=[{0: (100, 0.05), 1: (100, 0.05)}],
+            variant_pop_fbp=[{0: (100, 5), 1: (100, 5)}],  # (AN, AC); local AF = 0.05 each
         )
     ])
     rows = _compute_metrics(ht, n_pops=2).collect()
@@ -839,6 +852,77 @@ def test_compute_metrics_tie_breaks_to_smallest_index(
     # here rather than as a flake downstream. If this assertion ever needs to flip,
     # consider adding a secondary tie-break key on `pop` ascending in `_compute_metrics`.
     assert [s.pop for s in rows[0].all_pop_freqs] == [0, 1]
+
+
+def test_compute_metrics_fraction_phased_is_bounded_under_an_mismatch(
+    hail_context: None,  # noqa: ARG001
+) -> None:
+    """fraction_phased <= 1 under unequal component AN (old AF-ratio gave (3/100)/(3/200)=2.0)."""
+    ht = _make_metrics_input_ht([
+        MetricsRow(
+            haplotype=[0, 1],
+            per_pop_ac=[3],
+            variant_pop_af=[[0.5], [0.5]],
+            # frequencies_by_pop[pop] = {pop: (AN, AC)}; variant 2 (AN 200) is the rarest by AF.
+            variant_pop_fbp=[{0: (100, 3)}, {0: (200, 3)}],
+        )
+    ])
+    row = _compute_metrics(ht, n_pops=1).collect()[0]
+    assert row.min_variant_frequency == pytest.approx(0.015)
+    assert row.fraction_phased == pytest.approx(1.0)
+
+
+def test_compute_metrics_fraction_phased_uses_ac_of_argmin_af_variant(
+    hail_context: None,  # noqa: ARG001
+) -> None:
+    """The denominator is the min-AF component's AC, not the min-AC component's."""
+    # AC_hap=5 > a component's AC is synthetic (violates carrier-nesting); it only separates
+    # argmin(AF) (variant 1, AC 100) from argmin(AC) (variant 2, AC 2).
+    ht = _make_metrics_input_ht([
+        MetricsRow(
+            haplotype=[0, 1],
+            per_pop_ac=[5],
+            variant_pop_af=[[0.5], [0.5]],
+            variant_pop_fbp=[{0: (1000, 100)}, {0: (10, 2)}],
+        )
+    ])
+    row = _compute_metrics(ht, n_pops=1).collect()[0]
+    assert row.min_variant_frequency == pytest.approx(0.1)
+    assert row.fraction_phased == pytest.approx(5 / 100)
+
+
+def test_compute_metrics_fraction_phased_af_tie_breaks_to_first_component(
+    hail_context: None,  # noqa: ARG001
+) -> None:
+    """On an AF tie, the denominator uses the smaller-index component's AC (argmin tie-break)."""
+    ht = _make_metrics_input_ht([
+        MetricsRow(
+            haplotype=[0, 1],
+            per_pop_ac=[2],
+            variant_pop_af=[[0.5], [0.5]],
+            variant_pop_fbp=[{0: (100, 5)}, {0: (200, 10)}],
+        )
+    ])
+    row = _compute_metrics(ht, n_pops=1).collect()[0]
+    assert row.min_variant_frequency == pytest.approx(0.05)
+    assert row.fraction_phased == pytest.approx(2 / 5)
+
+
+def test_compute_metrics_fraction_phased_missing_when_argmin_component_ac_is_zero(
+    hail_context: None,  # noqa: ARG001
+) -> None:
+    """fraction_phased is missing (not a division by zero) when the rarest component has AC=0."""
+    ht = _make_metrics_input_ht([
+        MetricsRow(
+            haplotype=[0, 1],
+            per_pop_ac=[3],
+            variant_pop_af=[[0.5], [0.5]],
+            variant_pop_fbp=[{0: (100, 0)}, {0: (50, 5)}],
+        )
+    ])
+    row = _compute_metrics(ht, n_pops=1).collect()[0]
+    assert row.min_variant_frequency == pytest.approx(0.0)
+    assert row.fraction_phased is None
 
 
 def test_apply_containment_dedup_canonical_three_rows(
