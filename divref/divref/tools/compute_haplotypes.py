@@ -55,6 +55,36 @@ def _haploid_adjusted_call(
     )
 
 
+def _carrier_strands(
+    locus: hl.LocusExpression,
+    gt: hl.CallExpression,
+    sex_karyotype: hl.StringExpression,
+) -> tuple[hl.BooleanExpression, hl.BooleanExpression]:
+    """
+    Per-strand alt-carrier flags, ploidy-tolerant so `gt[1]` is never read on a haploid call.
+
+    On haploid loci (chrX non-PAR males, chrY non-PAR) only the left strand is collected, so each
+    carrier is counted once; non-XY chrY samples (XX, aneuploid, or undefined karyotype) never
+    carry; autosomes and PAR keep both strands.
+
+    Args:
+        locus: The variant locus expression.
+        gt: The genotype call expression.
+        sex_karyotype: The sample's sex-karyotype string expression.
+
+    Returns:
+        `(is_left, is_right)` boolean expressions.
+    """
+    is_male = sex_karyotype == "XY"
+    is_y_nonpar = locus.in_y_nonpar()
+    # Shared with `_haploid_adjusted_call`'s `exclude_on_y`; keep the two predicates in sync.
+    exclude_on_y = is_y_nonpar & hl.coalesce(~is_male, True)
+    is_haploid_locus = (locus.in_x_nonpar() & is_male) | is_y_nonpar
+    is_left = (gt[0] != 0) & ~exclude_on_y
+    is_right = hl.if_else(gt.ploidy > 1, gt[1] != 0, False) & ~is_haploid_locus
+    return is_left, is_right
+
+
 def _compute_locus_groups(
     variants_ht: hl.Table,
     window_size: int,
@@ -610,13 +640,12 @@ def compute_haplotypes(
     gnomAD HT track. Concretely, frequencies_by_pop uses hl.call(GT[0]) for these
     samples, and only the left strand is collected when building haplotype carrier sets.
 
-    On chrY non-PAR loci, the whole contig is haploid and only males carry it. Only the
-    per-population frequencies_by_pop (call_stats AN/AC) track applies this today: non-XY samples
-    (XX, aneuploid, or an undefined karyotype) are excluded there entirely (their call is mapped
-    to missing), and XY males are counted haploid the same way as chrX non-PAR males. Haplotype
-    carrier-strand collection does not yet skip the right strand for chrY non-PAR males the way it
-    does for chrX non-PAR males, so chrY haplotypes are not yet built from `compute_haplotypes`.
-    Autosomes and PAR1/PAR2 are unaffected.
+    On chrY non-PAR loci, the whole contig is haploid and only males carry it. Both the
+    per-population frequencies_by_pop (call_stats AN/AC) track and the haplotype carrier-strand
+    collection apply this: non-XY samples (XX, aneuploid, or an undefined karyotype) are excluded
+    entirely (their call is mapped to missing for frequencies_by_pop; they never contribute a
+    carrier strand), and XY males are counted haploid via the left strand only, the same
+    single-strand treatment as chrX non-PAR males. Autosomes and PAR1/PAR2 are unaffected.
 
     Args:
         vcfs_path: Path or glob pattern to input VCF files.
@@ -727,16 +756,10 @@ def compute_haplotypes(
     multi_member_groups = _multi_member_locus_groups(mt.rows())
     mt = mt.filter_rows(hl.is_defined(multi_member_groups[mt.locus_group]))
 
-    # Skip the right strand for non-PAR males so each male carrier is counted once (via the
-    # left strand). Without this, the pseudo-`1|1` encoding would double-count male
-    # haplotypes in chrX non-PAR. Re-derived here rather than reused from the earlier
-    # `is_male_nonpar` expression because `mt` was reassigned by `annotate_rows`/
-    # `add_col_index` above, so the older expression refers to a stale matrix-table snapshot.
-    is_male_nonpar_row = mt.locus.in_x_nonpar() & (mt.sex_karyotype == "XY")
-    entries = mt.select_entries(
-        is_left=mt.GT[0] != 0,
-        is_right=(mt.GT[1] != 0) & ~is_male_nonpar_row,
-    ).entries()
+    # Collect alt-carrier strands (see `_carrier_strands`). Re-derived against the current `mt`
+    # (reassigned by `annotate_rows`/`add_col_index` above), not the earlier snapshot.
+    is_left, is_right = _carrier_strands(mt.locus, mt.GT, mt.sex_karyotype)
+    entries = mt.select_entries(is_left=is_left, is_right=is_right).entries()
     entries = entries.filter(entries.is_left | entries.is_right)
     entries = entries.key_by()
     entries = entries.select(
