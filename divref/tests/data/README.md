@@ -7,10 +7,15 @@ golden are generated as noted under "Regenerating" below.
 
 ## Loci
 
-Two test loci are used throughout.
+Three test loci are used throughout.
 chr1:100,001-200,000 is a 100 kb autosomal window.
 chrX:50,000,000-50,025,000 is a 25 kb window in chrX non-PAR that exercises the haploid-male ploidy
 handling in `compute-haplotypes`.
+chrY:2,900,000-2,925,000 is a 25 kb non-PAR window: 27 PASS + common (AF>=0.005) sites, where 94 of
+the 480 fixture samples -- all male, since only males have called chrY genotypes -- carry >=2 alt
+variants (so haplotypes form when computed by the later end-to-end test). This 27-site count is the
+in-window count at AF>=0.005; it does not equal any single committed file's row count (see the chrY
+fixtures section below).
 
 ## Sample metadata
 
@@ -20,6 +25,8 @@ stripped to the key (`s`) and `gnomad_population_inference`.
 [hgdp_1kg_sample_metadata.extract.ht](hgdp_1kg_sample_metadata.extract.ht) is the simplified
 sample-to-population mapping produced from it by `extract-sample-metadata`.
 [samples.txt](samples.txt) is the sample list used to subset the phased BCFs with bcftools.
+`subset_gnomad_hail_tables` passes `--subsample-seed 0`, which is the tool's existing default, so
+regenerating does not change the chr1/chrX/sample-metadata fixtures.
 
 ## chr1 fixtures (chr1:100,001-200,000)
 
@@ -42,6 +49,21 @@ annotations and per-population AF sites table for the chrX locus.
 genotypes for the locus.
 There is deliberately no chrX haplotypes table: this locus yields zero haplotypes at the test
 thresholds, so chrX serves as a sites-only contig (gnomAD variants only) in the DuckDB index tests.
+
+## chrY fixtures (chrY:2,900,000-2,925,000, non-PAR)
+
+[chrY_2900000_2925000.ht](chrY_2900000_2925000.ht) and
+[chrY_2900000_2925000.gnomad_afs.ht](chrY_2900000_2925000.gnomad_afs.ht) are the variant
+annotations and per-population AF sites table for the chrY locus, subset from the same
+HGDP+1KG variant annotation table as chr1/chrX.
+`chrY_2900000_2925000.gnomad_afs.ht` holds 106 rows.
+[chrY_2900000_2925000.vcf.gz](chrY_2900000_2925000.vcf.gz) (with its `.tbi`) holds genotypes for
+the locus, 232 records.
+Unlike the chr1/chrX rules, which subset an already-filtered, phased BCF, `subset_genotypes_chrY`
+subsets the raw gnomAD v3.1.2 HGDP+1KG chrY VCF
+(`gnomad.genomes.v3.1.2.hgdp_tgp.chrY.vcf.bgz`), PASS-filtering it and stripping it to `FORMAT/GT`.
+There is no chrY haplotypes table fixture; a later PR's end-to-end test computes haplotypes from
+this VCF directly.
 
 ## Reference FASTAs
 
