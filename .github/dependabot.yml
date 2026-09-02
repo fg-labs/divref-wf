@@ -1,0 +1,19 @@
+# Dependabot version updates.
+# See: https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Hold every new action release for 14 days before opening a PR, so a
+    # compromised or yanked tag is not adopted immediately. Applies to all
+    # update types.
+    cooldown:
+      default-days: 14
+    # Combine minor and patch action bumps into one PR; majors stay separate.
+    groups:
+      github-actions-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
