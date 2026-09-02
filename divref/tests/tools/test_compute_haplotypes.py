@@ -1154,3 +1154,55 @@ def test_haploid_adjusted_call_counts_chrx_nonpar_males_once(
     # Autosome: both diploid -> AN 4 (the correction does not apply off chrX non-PAR).
     assert by_contig["chr1"].AN == 4
     assert by_contig["chr1"].AC[1] == 4
+
+
+def test_haploid_adjusted_call_chry_nonpar_xy_male_only(
+    hail_context: None,  # noqa: ARG001
+) -> None:
+    """On chrY non-PAR, only XY males count (haploid, one allele); others are excluded."""
+    # cols: 0=XY male, 1=XX female, 2=missing karyotype. rows: 0=chrY non-PAR, 1=autosome.
+    mt = hl.utils.range_matrix_table(n_rows=2, n_cols=3)
+    mt = mt.annotate_cols(
+        sex_karyotype=hl.switch(mt.col_idx).when(0, "XY").when(1, "XX").or_missing()
+    )
+    mt = mt.annotate_rows(
+        locus=hl.if_else(
+            mt.row_idx == 0,
+            hl.locus("chrY", 10_000_000, reference_genome="GRCh38"),
+            hl.locus("chr1", 1_000_000, reference_genome="GRCh38"),
+        ),
+        alleles=["A", "T"],
+    )
+    # chrY genotypes are haploid; autosome genotypes diploid.
+    mt = mt.annotate_entries(GT=hl.if_else(mt.locus.contig == "chrY", hl.call(1), hl.call(1, 1)))
+    adjusted = _haploid_adjusted_call(mt.locus, mt.GT, mt.sex_karyotype)
+    mt = mt.annotate_rows(cs=hl.agg.call_stats(adjusted, 2))
+    by_contig = {row.locus.contig: row.cs for row in mt.rows().collect()}
+    # chrY: only the XY male contributes, haploid -> AN 1, all alt.
+    assert by_contig["chrY"].AN == 1
+    assert by_contig["chrY"].AC[1] == 1
+    # Autosome: all three diploid, correction does not apply -> AN 6.
+    assert by_contig["chr1"].AN == 6
+    assert by_contig["chr1"].AC[1] == 6
+
+
+def test_haploid_adjusted_call_chry_missing_male_stays_missing(
+    hail_context: None,  # noqa: ARG001
+) -> None:
+    """A missing XY male call on chrY collapses to a missing call, not a defined ploidy-1 call."""
+    mt = hl.utils.range_matrix_table(n_rows=1, n_cols=1)
+    mt = mt.annotate_cols(sex_karyotype="XY")
+    mt = mt.annotate_rows(
+        locus=hl.locus("chrY", 10_000_000, reference_genome="GRCh38"), alleles=["A", "T"]
+    )
+    mt = mt.annotate_entries(GT=hl.missing(hl.tcall))
+    adjusted = _haploid_adjusted_call(mt.locus, mt.GT, mt.sex_karyotype)
+    mt = mt.annotate_rows(cs=hl.agg.call_stats(adjusted, 2))
+    assert mt.rows().collect()[0].cs.AN == 0
+
+    adj = (
+        mt.select_entries(adj=_haploid_adjusted_call(mt.locus, mt.GT, mt.sex_karyotype))
+        .entries()
+        .collect()[0]
+    )
+    assert adj.adj is None
