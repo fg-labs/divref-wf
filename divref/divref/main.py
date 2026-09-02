@@ -4,6 +4,7 @@ from collections.abc import Callable
 
 import defopt
 
+from divref.alias import HailPath
 from divref.tools.append_contig_to_duckdb_index import append_contig_to_duckdb_index
 from divref.tools.compute_haplotypes import compute_haplotypes
 from divref.tools.create_divref_fasta import create_divref_fasta
@@ -50,5 +51,8 @@ def run() -> None:
     defopt.run(
         funcs=_tools,
         argv=sys.argv[1:],
+        # defopt 6.4 does not unwrap the PEP 695 `type HailPath = str` alias. Map to `str`,
+        # not `Path` for GCS.
+        parsers={HailPath: str},
     )
     logger.info("Finished executing successfully.")
