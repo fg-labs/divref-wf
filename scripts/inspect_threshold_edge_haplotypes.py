@@ -280,7 +280,9 @@ def main() -> None:
             if min_local == 0:
                 rows_out.append((emp_af, None, None))
                 continue
-            fp = emp_af / min_local
+            # Count-based fraction_phased (AN-consistent), matching `_compute_metrics`: AC_hap over
+            # the AC of the rarest-local-AF component (min_local > 0 here, so that AC is > 0).
+            fp = per_pop_AC[p] / min(ans, key=lambda a: a.AF[1]).AC[1]
             gnomad_min = min(v.freq[p].AF for v in vrows)
             est_af = gnomad_min * fp
             rows_out.append((emp_af, fp, est_af))
