@@ -66,10 +66,6 @@ WORK_DIR: Path = Path(config["work_dir"])
 TMP_DIR: Path = Path(config["tmp_dir"])
 
 CHROMS: list[str] = config["chromosomes"]
-# Haplotypes are computed for autosomes + chrX (chrX non-PAR uses the haploid-male ploidy
-# correction in `divref compute-haplotypes`); chrY contributes single gnomAD variants only.
-_HAPLOTYPE_CONTIGS: frozenset[str] = frozenset(f"chr{n}" for n in range(1, 23)) | {"chrX"}
-HAPLOTYPE_CHROMS: list[str] = [c for c in CHROMS if c in _HAPLOTYPE_CONTIGS]
 
 # Constrains `{chrom}` wildcards to valid GRCh38 main-contig tokens so they cannot greedily match
 # unintended path segments (e.g. an intermediate filename suffix that embeds a contig).
@@ -87,6 +83,7 @@ HGDP_1KG_PHASED_BCF_SUFFIX: str = config["hgdp_1kg_phased_bcf_suffix"]
 HGDP_1KG_PHASED_BCF_CHRX: dict[str, str] = config["hgdp_1kg_phased_bcf_chrX"]
 HGDP_1KG_VARIANT_ANNOTATION_HAIL_TABLE: str = config["hgdp_1kg_variant_annotation_hail_table"]
 HGDP_1KG_SAMPLE_METADATA_HAIL_TABLE: str = config["hgdp_1kg_sample_metadata_hail_table"]
+HGDP_1KG_CHRY_VCF: str = config["hgdp_1kg_chrY_vcf"]
 HGDP_1KG_POPS: list[str] = config["hgdp_1kg_populations"]
 HGDP_1KG_MIN_POP_VARIANT_AF: float = config["hgdp_1kg_min_pop_variant_allele_freq"]
 HGDP_1KG_MIN_POP_HAPLOTYPE_AF: float = config["hgdp_1kg_min_estimated_gnomad_haplotype_allele_freq"]
@@ -156,8 +153,8 @@ rule subset_phased_genotypes:
     log:
         "logs/generate_divref/subset_phased_genotypes.{chrom}.log",
     wildcard_constraints:
-        # Autosomes + chrY only — chrX has its own subset rule below.
-        chrom=r"chr(\d+|Y)",
+        # Autosomes only — chrX and chrY each have their own subset rule below.
+        chrom=r"chr\d+",
     params:
         bcf=f"{HGDP_1KG_PHASED_BCF_PREFIX}{{chrom}}{HGDP_1KG_PHASED_BCF_SUFFIX}",
     shell:
@@ -197,6 +194,60 @@ rule subset_phased_genotypes_chrX:
                 {params.par1} {params.non_par} {params.par2} \
             | bcftools annotate \
                 --remove INFO \
+                --output-type z \
+                --output {output.vcf} \
+                --write-index=tbi \
+                -
+        ) &> {log}
+        """
+
+
+####################################################################################################
+# The phased cohort, read from the external chr22 BCF header (a source input, not a workflow
+# output, so it needs no chr22 in `chromosomes`); every phased BCF carries this cohort, and chr22
+# is pinned for a deterministic header-only read. chrY is subset to the cohort for count
+# comparability, not a shared AN: haploid chrY keeps its own male-only allele number.
+####################################################################################################
+rule write_phased_sample_list:
+    output:
+        samples=f"{WORK_DIR}/inputs/phased_samples.txt",
+    log:
+        "logs/generate_divref/write_phased_sample_list.log",
+    params:
+        bcf=f"{HGDP_1KG_PHASED_BCF_PREFIX}chr22{HGDP_1KG_PHASED_BCF_SUFFIX}",
+    shell:
+        """
+        (
+            bcftools query --list-samples {params.bcf} > {output.samples}
+        ) &> {log}
+        """
+
+
+####################################################################################################
+# Prepares the chrY genotypes for haplotype computation: PASS-filter the raw unphased release VCF,
+# subset to the phased cohort (no `--force-samples`, so a missing cohort sample fails the rule), and
+# strip to GT only.
+####################################################################################################
+rule subset_genotypes_chrY:
+    input:
+        samples=f"{WORK_DIR}/inputs/phased_samples.txt",
+    output:
+        vcf=f"{WORK_DIR}/inputs/hgdp_1kg.phased_genotypes.chrY.vcf.gz",
+        tbi=f"{WORK_DIR}/inputs/hgdp_1kg.phased_genotypes.chrY.vcf.gz.tbi",
+    log:
+        "logs/generate_divref/subset_genotypes_chrY.log",
+    params:
+        vcf=HGDP_1KG_CHRY_VCF,
+    shell:
+        """
+        (
+            bcftools view \
+                --apply-filters PASS \
+                --samples-file {input.samples} \
+                --output-type u \
+                {params.vcf} \
+            | bcftools annotate \
+                --remove 'INFO,^FORMAT/GT' \
                 --output-type z \
                 --output {output.vcf} \
                 --write-index=tbi \
@@ -437,7 +488,7 @@ rule create_table_pairs_tsv:
     input:
         haplotypes_hts=expand(
             f"{WORK_DIR}/haplotypes/hgdp_1kg.haplotypes.{{chrom}}.ht",
-            chrom=HAPLOTYPE_CHROMS,
+            chrom=CHROMS,
         ),
         sites_hts=expand(
             f"{WORK_DIR}/inputs/gnomad.sites.{{chrom}}.ht",
@@ -450,10 +501,7 @@ rule create_table_pairs_tsv:
             f.write("contig\thaplotype_table_path\tsites_table_path\n")
             for chrom in CHROMS:
                 sites_ht = f"{WORK_DIR}/inputs/gnomad.sites.{chrom}.ht"
-                if chrom in HAPLOTYPE_CHROMS:
-                    haplotype_ht = f"{WORK_DIR}/haplotypes/hgdp_1kg.haplotypes.{chrom}.ht"
-                else:
-                    haplotype_ht = ""
+                haplotype_ht = f"{WORK_DIR}/haplotypes/hgdp_1kg.haplotypes.{chrom}.ht"
                 f.write(f"{chrom}\t{haplotype_ht}\t{sites_ht}\n")
 
 
