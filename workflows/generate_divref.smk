@@ -28,8 +28,11 @@ _CLOUD_SCHEMES: dict[str, tuple[str, ...]] = {
 _GNOMAD_CLOUD_FOR: dict[str, str] = {"GCS": "GCS", "AWS": "S3"}
 
 
-def _validate_cloud_uri(field: str, uri: str) -> None:
+def _validate_cloud_uri(field: str, uri: str, *, bcftools_consumed: bool = False) -> None:
     expected = _CLOUD_SCHEMES[CLOUD]
+    # bcftools/HTSlib reads `s3://` but not the Hadoop-only `s3a://`.
+    if bcftools_consumed and CLOUD == "AWS":
+        expected = ("s3://",)
     if not any(uri.startswith(scheme) for scheme in expected):
         raise ValueError(
             f"Config field '{field}' has URI {uri!r} which does not match cloud "
@@ -37,18 +40,23 @@ def _validate_cloud_uri(field: str, uri: str) -> None:
         )
 
 
+# Hail- or download-consumed URIs (accept `s3a://` too on AWS).
 for _field in (
     "reference_genome_uri",
-    "hgdp_1kg_phased_bcf_prefix",
     "hgdp_1kg_variant_annotation_hail_table",
     "hgdp_1kg_sample_metadata_hail_table",
 ):
     _validate_cloud_uri(_field, config[_field])
 
+# bcftools-consumed URIs (never `s3a://`).
+for _field in ("hgdp_1kg_phased_bcf_prefix", "hgdp_1kg_chrY_vcf"):
+    _validate_cloud_uri(_field, config[_field], bcftools_consumed=True)
+
 for _chrx_part in ("par1", "non_par", "par2"):
     _validate_cloud_uri(
         f"hgdp_1kg_phased_bcf_chrX.{_chrx_part}",
         config["hgdp_1kg_phased_bcf_chrX"][_chrx_part],
+        bcftools_consumed=True,
     )
 
 

@@ -9,10 +9,8 @@ properties:
     type: string
     enum: ["GCS", "AWS"]
     description: |
-      Cloud provider hosting all input URIs. The workflow validates that every cloud URI
-      (`reference_genome_uri`, `hgdp_1kg_phased_bcf_prefix`,
-      `hgdp_1kg_variant_annotation_hail_table`, `hgdp_1kg_sample_metadata_hail_table`)
-      uses a scheme matching this value (`gs://` for `GCS`; `s3://` or `s3a://` for `AWS`).
+      Cloud provider hosting all input URIs. The workflow validates that every cloud-input URI
+      field uses a scheme matching this value (`gs://` for `GCS`; `s3://` or `s3a://` for `AWS`).
       Also drives the cloud selected for `gnomad_variant_annotation_source`.
 
   reference_genome_uri:
@@ -94,6 +92,17 @@ properties:
       par1: "gs://gcp-public-data--gnomad/resources/hgdp_1kg/phased_haplotypes_v2/hgdp1kgp_chrX_par1.shapeit5_common.bcf"
       non_par: "gs://gcp-public-data--gnomad/resources/hgdp_1kg/phased_haplotypes_v2/hgdp1kgp_chrX_non_par.full.shapeit5_rare.bcf"
       par2: "gs://gcp-public-data--gnomad/resources/hgdp_1kg/phased_haplotypes_v2/hgdp1kgp_chrX_par2.shapeit5_common.bcf"
+
+  hgdp_1kg_chrY_vcf:
+    type: string
+    description: |
+      URI to the gnomAD 3.1.2 HGDP+1KG chrY genotype VCF; it is the same HGDP+1KG subset as the
+      `hgdp_1kg_subset` Hail tables.
+      Both `gs://` and `s3://` are supported
+      (bcftools/HTSlib reads either); use `s3://`, not the `s3a://` used for the Hail-table URIs.
+      The scheme must match the workflow-level `cloud`. S3 alternative:
+      `s3://gnomad-public-us-east-1/release/3.1.2/vcf/genomes/gnomad.genomes.v3.1.2.hgdp_tgp.chrY.vcf.bgz`.
+    default: "gs://gcp-public-data--gnomad/release/3.1.2/vcf/genomes/gnomad.genomes.v3.1.2.hgdp_tgp.chrY.vcf.bgz"
 
   hgdp_1kg_variant_annotation_hail_table:
     type: string
