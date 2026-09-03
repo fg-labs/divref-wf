@@ -11,6 +11,7 @@ haplotypes), so this is a regression lock on the per-chromosome index build.
 from pathlib import Path
 
 import duckdb
+import hail as hl
 
 from divref.tools.append_contig_to_duckdb_index import append_contig_to_duckdb_index
 from divref.tools.finalize_duckdb_index import finalize_duckdb_index
@@ -136,3 +137,75 @@ def test_new_flow_matches_golden(
 
     golden_tsv = datadir / "duckdb_index_golden" / "sequences.chr1_chrX.tsv"
     _assert_sequences_equivalent(produced_tsv, golden_tsv)
+
+
+def test_empty_haplotype_catalog_still_emits_sites(
+    hail_context: None,  # noqa: ARG001
+    datadir: Path,
+    tmp_path: Path,
+) -> None:
+    """
+    A contig with a 0-row haplotype table appends cleanly and still emits its gnomAD sites.
+
+    Distinct from `test_new_flow_matches_golden`'s chrX row, which passes an empty *path* (skipping
+    the haplotype side); here the path is present but the table has 0 rows.
+    """
+    # Build a 0-row haplotype table with the real schema by filtering the committed chr1 fixture.
+    empty_hap = tmp_path / "empty_haplotypes.ht"
+    hl.read_table(str(datadir / "chr1_100001_200000_haplotypes.ht")).filter(
+        hl.literal(False)
+    ).write(str(empty_hap))
+
+    table_pairs_tsv = _write_table_pairs_tsv(
+        tmp_path / "table_pairs.tsv",
+        [
+            (
+                "chr1",
+                str(empty_hap),
+                str(datadir / "chr1_100001_200000.gnomad_afs.ht"),
+            ),
+        ],
+    )
+    reference_fasta = datadir / "test_reference.chr1_chrX.fa.gz"
+    output_base = tmp_path / "index"
+
+    init_duckdb_index(
+        in_table_pairs_tsv=table_pairs_tsv,
+        output_base=output_base,
+        version="test",
+        window_size=25,
+        force=True,
+    )
+    append_contig_to_duckdb_index(
+        in_table_pairs_tsv=table_pairs_tsv,
+        contig="chr1",
+        output_base=output_base,
+        reference_fasta=reference_fasta,
+        window_size=25,
+        version="test",
+    )
+    finalize_duckdb_index(output_base=output_base)
+
+    with duckdb.connect(str(_db_path(output_base)), read_only=True) as conn:
+        sites_row = conn.execute("SELECT count(*) FROM sequences WHERE contig = 'chr1'").fetchone()
+        hap_row = conn.execute(
+            "SELECT count(*) FROM sequences WHERE contig = 'chr1' AND source = 'HGDP_haplotype'"
+        ).fetchone()
+    assert sites_row is not None and hap_row is not None
+    n_sites = sites_row[0]
+    n_hap = hap_row[0]
+
+    # Regression lock: the empty-catalog run must emit exactly the chr1 gnomAD single-variant
+    # rows from the golden -- no drop, no dup -- proving the union with an empty haplotype side
+    # is a true no-op that degenerates to sites-only.
+    golden = (datadir / "duckdb_index_golden" / "sequences.chr1_chrX.tsv").read_text().splitlines()
+    header = golden[0].split("\t")
+    contig_col, source_col = header.index("contig"), header.index("source")
+    expected_chr1_sites = sum(
+        1
+        for line in golden[1:]
+        if (row := line.split("\t"))[contig_col] == "chr1" and row[source_col] == "gnomAD_variant"
+    )
+
+    assert n_hap == 0  # no haplotype rows, because the haplotype table was empty
+    assert n_sites == expected_chr1_sites  # all and only the chr1 gnomAD single-variant rows
