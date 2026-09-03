@@ -14,30 +14,45 @@ logger = logging.getLogger(__name__)
 
 
 def _haploid_adjusted_call(
-    locus: hl.Expression,
-    gt: hl.Expression,
-    sex_karyotype: hl.Expression,
-) -> hl.Expression:
+    locus: hl.LocusExpression,
+    gt: hl.CallExpression,
+    sex_karyotype: hl.StringExpression,
+) -> hl.CallExpression:
     """
-    Collapse chrX non-PAR male genotypes to haploid; pass every other call through unchanged.
+    Collapse haploid loci to a single allele and exclude non-XY samples on chrY.
 
-    Males (`sex_karyotype == "XY"`) at chrX non-PAR loci are encoded as pseudo-homozygous diploid
-    (0|0 / 1|1) in the SHAPEIT5 BCFs, but gnomAD reports chrX non-PAR allele numbers with males
-    counted as haploid. Replacing such a call with `hl.call(gt[0])` makes the downstream
-    `call_stats` AN/AC match the gnomAD convention. It is lossless given the verified encoding
-    (`GT[0] == GT[1]` there) but would undercount a heterozygous male non-PAR call if one were
-    ever emitted. Autosomes, PAR, and chrY are unaffected.
+    On chrX non-PAR, XY males are pseudo-homozygous diploid (0|0 / 1|1) in the SHAPEIT5 BCFs but
+    gnomAD counts them haploid; `hl.call(gt[0])` makes call_stats AN/AC match gnomAD. On chrY
+    non-PAR the whole contig is haploid and only males carry it: non-XY samples (XX, aneuploid, or
+    an undefined karyotype) are mapped to a missing call so they never reach AN/AC, and XY males
+    collapse to their single allele (a missing male call stays missing, since `hl.call(gt[0])`
+    propagates the null). `hl.coalesce` makes the exclusion predicate defined, so an undefined
+    karyotype on chrY is excluded rather than silently treated as diploid (without the coalesce it
+    would fall through to `.default(gt)` and be counted as a diploid call, AN 2, not male).
+    Symmetrically, an undefined karyotype on chrX non-PAR falls through to `.default(gt)` (diploid,
+    not excluded) — this is inert in practice, since such a sample has `pop = None` and is dropped
+    by the upstream `filter_cols(hl.is_defined(pop_int))` before this function ever runs. Autosomes
+    and PAR pass through unchanged.
 
     Args:
         locus: The variant locus expression.
-        gt: The diploid genotype call expression.
+        gt: The genotype call expression.
         sex_karyotype: The sample's sex-karyotype string expression.
 
     Returns:
-        A call expression: haploid `call(gt[0])` for chrX non-PAR males, else `gt` unchanged.
+        A call expression: haploid `call(gt[0])` on chrX or chrY non-PAR for the retained samples,
+        a missing call for non-XY samples on chrY non-PAR, else `gt` unchanged.
     """
-    is_male_nonpar = locus.in_x_nonpar() & (sex_karyotype == "XY")
-    return hl.if_else(is_male_nonpar, hl.call(gt[0]), gt)
+    is_male = sex_karyotype == "XY"
+    is_y_nonpar = locus.in_y_nonpar()
+    is_haploid_male = (locus.in_x_nonpar() | is_y_nonpar) & is_male
+    exclude_on_y = is_y_nonpar & hl.coalesce(~is_male, True)
+    return (
+        hl.case(missing_false=True)
+        .when(exclude_on_y, hl.missing(hl.tcall))
+        .when(is_haploid_male, hl.call(gt[0]))
+        .default(gt)
+    )
 
 
 def _compute_locus_groups(
@@ -594,7 +609,14 @@ def compute_haplotypes(
     counted as haploid; without the correction, empirical AC/AN would not match the
     gnomAD HT track. Concretely, frequencies_by_pop uses hl.call(GT[0]) for these
     samples, and only the left strand is collected when building haplotype carrier sets.
-    Autosomes, PAR1, PAR2, and chrY are unaffected.
+
+    On chrY non-PAR loci, the whole contig is haploid and only males carry it. Only the
+    per-population frequencies_by_pop (call_stats AN/AC) track applies this today: non-XY samples
+    (XX, aneuploid, or an undefined karyotype) are excluded there entirely (their call is mapped
+    to missing), and XY males are counted haploid the same way as chrX non-PAR males. Haplotype
+    carrier-strand collection does not yet skip the right strand for chrY non-PAR males the way it
+    does for chrX non-PAR males, so chrY haplotypes are not yet built from `compute_haplotypes`.
+    Autosomes and PAR1/PAR2 are unaffected.
 
     Args:
         vcfs_path: Path or glob pattern to input VCF files.
@@ -677,8 +699,9 @@ def compute_haplotypes(
     mt = mt.add_row_index().add_col_index()
     mt = mt.filter_entries(mt.freq[mt.pop_int].AF >= variant_freq_threshold)
 
-    # Count chrX non-PAR males as haploid so empirical AC/AN match gnomAD's convention; see
-    # `_haploid_adjusted_call`. Autosomes, PAR, and chrY keep the original diploid call.
+    # Count chrX and chrY non-PAR males as haploid, and exclude non-XY samples on chrY, so
+    # empirical AC/AN match gnomAD's convention; see `_haploid_adjusted_call`. Autosomes and
+    # PAR keep the original diploid call.
     adjusted_gt = _haploid_adjusted_call(mt.locus, mt.GT, mt.sex_karyotype)
     mt = mt.annotate_rows(
         # call_stats n_alleles=2: gnomAD HGDP+1KG sites are biallelic (one alt per row).
