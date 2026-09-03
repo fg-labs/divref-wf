@@ -11,6 +11,7 @@ import pytest
 from divref.tools.compute_haplotypes import _aggregate_containment_ac
 from divref.tools.compute_haplotypes import _apply_containment_dedup
 from divref.tools.compute_haplotypes import _attach_component_info
+from divref.tools.compute_haplotypes import _carrier_strands
 from divref.tools.compute_haplotypes import _compute_metrics
 from divref.tools.compute_haplotypes import _enumerate_subfragments
 from divref.tools.compute_haplotypes import _form_parent_blocks
@@ -1206,3 +1207,92 @@ def test_haploid_adjusted_call_chry_missing_male_stays_missing(
         .collect()[0]
     )
     assert adj.adj is None
+
+
+@pytest.mark.parametrize(
+    "contig,position,sex_karyotype,gt_alleles,expected_left,expected_right",
+    [
+        pytest.param(
+            "chrY",
+            10_000_000,
+            "XY",
+            (1,),  # genuinely haploid GT: proves gt[1] is never read (an unguarded read raises)
+            True,
+            False,
+            id="chry_nonpar_xy_male_haploid_left_only",
+        ),
+        pytest.param(
+            "chrY",
+            10_000_000,
+            "XX",
+            (1,),
+            False,
+            False,
+            id="chry_nonpar_xx_excluded_despite_defined_alt",
+        ),
+        pytest.param(
+            "chrY",
+            10_000_000,
+            "XY",
+            None,
+            None,
+            False,
+            id="chry_nonpar_xy_missing_call_dropped",
+        ),
+        pytest.param(
+            "chrX",
+            50_000_000,
+            "XY",
+            (1, 1),
+            True,
+            False,
+            id="chrx_nonpar_xy_male_left_only_regression",
+        ),
+        pytest.param(
+            "chrX",
+            50_000_000,
+            "XX",
+            (0, 1),
+            False,
+            True,
+            id="chrx_nonpar_xx_female_diploid_het_right_only",
+        ),
+        pytest.param(
+            "chr1",
+            1_000_000,
+            "XX",
+            (0, 1),
+            False,
+            True,
+            id="autosome_het_alt_on_right_strand",
+        ),
+        pytest.param(
+            "chr1",
+            1_000_000,
+            "XX",
+            (1, 1),
+            True,
+            True,
+            id="autosome_hom_alt_both_strands",
+        ),
+    ],
+)
+def test_carrier_strands(
+    hail_context: None,  # noqa: ARG001
+    contig: str,
+    position: int,
+    sex_karyotype: str,
+    gt_alleles: tuple[int, ...] | None,
+    expected_left: bool | None,
+    expected_right: bool,
+) -> None:
+    """`_carrier_strands` table: ploidy-tolerant, chrY/chrX single-strand, chrY non-XY exclusion."""
+    mt = hl.utils.range_matrix_table(n_rows=1, n_cols=1)
+    mt = mt.annotate_cols(sex_karyotype=sex_karyotype)
+    mt = mt.annotate_rows(locus=hl.locus(contig, position, reference_genome="GRCh38"))
+    gt = hl.call(*gt_alleles) if gt_alleles is not None else hl.missing(hl.tcall)
+    mt = mt.annotate_entries(GT=gt)
+    is_left, is_right = _carrier_strands(mt.locus, mt.GT, mt.sex_karyotype)
+    mt = mt.annotate_entries(is_left=is_left, is_right=is_right)
+    r = mt.entries().collect()[0]
+    assert r.is_left == expected_left and r.is_right == expected_right
