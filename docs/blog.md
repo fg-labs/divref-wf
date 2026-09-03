@@ -1,5 +1,7 @@
 # Rebuilding DivRef: a customizable resource of human variation and haplotype sequences
 
+*This post is valid against commit [`0a509cd`](https://github.com/fulcrumgenomics/divref-wf/commit/0a509cd) on `main`.*
+
 Finding matches in the human genome to short sequences is a common problem in bioinformatics.
 For example, CRISPR experiments which seek to edit the genome are guided by short sequences matching the desired editing site.
 Knowing what possible off-target edits could occur is important: they could have unintended consequences.
