@@ -693,8 +693,11 @@ def _make_metrics_input_ht(rows: list[MetricsRow]) -> hl.Table:
                 {
                     p: {
                         "AN": an,
-                        "AC": [an - ac, ac],
-                        "AF": [1.0 - (ac / an if an else 0.0), ac / an if an else 0.0],
+                        # gnomAD's `call_stats` emits missing AF/AC arrays when AN=0 (no called
+                        # alleles), so model AN=0 as missing rather than a defined 0.0 — otherwise
+                        # `argmin`/`min` would select the AN=0 component instead of skipping it.
+                        "AC": None if an == 0 else [an - ac, ac],
+                        "AF": None if an == 0 else [1.0 - ac / an, ac / an],
                     }
                     for p, (an, ac) in fbp.items()
                 }
@@ -779,10 +782,10 @@ def test_compute_metrics_zero_an_yields_missing(hail_context: None) -> None:  # 
     ht = _make_metrics_input_ht([
         MetricsRow(
             haplotype=[0],
-            # pop 0: AC=1, AN=0 -> AF missing.  pop 1: AC=1, AN=10 -> AF=0.1.
+            # Haplotype AC=[1, 1]. empirical_AF needs min AN > 0, so pop 0 (AN=0) is missing.
             per_pop_ac=[1, 1],
             variant_pop_af=[[0.5, 0.4]],
-            # (AN, AC) per pop; local AF = AC/AN = 0.0 (AN=0, guarded elsewhere), 0.20.
+            # Variant local (AN, AC): pop 0 = (0, 0) -> AF missing; pop 1 = (10, 2) -> AF 0.20.
             variant_pop_fbp=[{0: (0, 0), 1: (10, 2)}],
         )
     ])
@@ -830,6 +833,36 @@ def test_compute_metrics_absent_pop_key_skips_variant_in_min(
     assert pop_freqs_by_pop[0].estimated_gnomad_AF == pytest.approx(0.2)
     # Pop 1 has data for both variants and is unaffected.
     assert pop_freqs_by_pop[1].empirical_AF == pytest.approx(4 / 150)
+
+
+def test_compute_metrics_argmin_skips_an_zero_component(
+    hail_context: None,  # noqa: ARG001
+) -> None:
+    """
+    Argmin skips an AN=0 (missing-AF) component.
+
+    fraction_phased then anchors on the rarest *defined* component, not the AN=0 one.
+    """
+    # Pop 0 variant AFs: [missing (AN=0), 0.20, 0.05]. argmin skips the missing entry and picks
+    # variant 2 (AF 0.05, AC 5), so fraction_phased[0] = per_pop_AC 3 / 5 = 0.6. A defined-0.0 model
+    # would instead select variant 0, and the AC=0 guard would make fraction_phased missing, so 0.6
+    # confirms the skip. empirical_AF[0] stays missing (min AN over components is 0).
+    ht = _make_metrics_input_ht([
+        MetricsRow(
+            haplotype=[0, 1, 2],
+            per_pop_ac=[3, 9],
+            variant_pop_af=[[0.5, 0.5], [0.5, 0.5], [0.5, 0.5]],
+            variant_pop_fbp=[
+                {0: (0, 0), 1: (100, 50)},
+                {0: (100, 20), 1: (100, 50)},
+                {0: (100, 5), 1: (100, 50)},
+            ],
+        )
+    ])
+    rows = _compute_metrics(ht, n_pops=2).collect()
+    pop_freqs = {s.pop: s for s in rows[0].all_pop_freqs}
+    assert pop_freqs[0].fraction_phased == pytest.approx(0.6)
+    assert pop_freqs[0].empirical_AF is None
 
 
 def test_compute_metrics_tie_breaks_to_smallest_index(
@@ -1216,7 +1249,12 @@ def test_compute_haplotypes_chry_nonpar(
     datadir: Path,
     tmp_path: Path,
 ) -> None:
-    """ChrY non-PAR haplotypes form with haploid carrier counts and fraction_phased ~ 1.0."""
+    """
+    ChrY non-PAR haplotypes form with haploid carrier counts and fraction_phased ~ 1.0.
+
+    This covers chrY haplotype formation only. The downstream index/FASTA leg is contig-agnostic
+    (a plain contig+position reference lookup), so the chr1 DuckDB-index e2e tests cover chrY there.
+    """
     in_sites = datadir / "chrY_2900000_2925000.gnomad_afs.ht"
     in_samples = datadir / "hgdp_1kg_sample_metadata.extract.ht"
     vcf_path = datadir / "chrY_2900000_2925000.vcf.gz"
